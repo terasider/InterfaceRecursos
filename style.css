@@ -1,0 +1,82 @@
+﻿/* Tema escuro com detalhes quentes */
+body {
+  font-family: 'Segoe UI', sans-serif;
+  background: #0a0a0a; /* preto profundo */
+  color: #f4cfa0; /* bege dourado claro */
+  padding: 30px;
+}
+
+h1, h2 {
+  text-align: center;
+  color: #ff6b3c; /* laranja quente */
+  text-shadow: 1px 1px 4px #ff3300;
+}
+
+.subtitle {
+  text-align: center;
+  font-size: 14px;
+  color: #ffb17a; /* pêssego claro */
+  margin-bottom: 30px;
+  text-shadow: 1px 1px 2px #5a1c00;
+}
+
+.categoria {
+  margin-bottom: 40px;
+  border: 1px solid #cc4e00;
+  border-radius: 10px;
+  background: #1a0f0a; /* preto acastanhado */
+  padding: 20px;
+  box-shadow: 0 0 15px #ff5e00aa;
+}
+
+.categoria h2 {
+  font-size: 22px;
+  margin-bottom: 20px;
+  border-bottom: 2px solid #ff6b3c;
+  padding-bottom: 8px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 20px;
+}
+
+.card {
+  background: #26130a; /* marrom queimado escuro */
+  border-radius: 8px;
+  padding: 18px;
+  box-shadow: 0 3px 10px rgba(255, 100, 50, 0.4);
+  text-align: center;
+  transition: transform 0.3s, background-color 0.3s, color 0.3s;
+  cursor: pointer;
+  color: #ffd7b5;
+}
+
+.card:hover {
+  transform: translateY(-5px);
+  background-color: #ff6b3c; /* laranja vibrante */
+  color: #0a0a0a;
+  box-shadow: 0 5px 20px #ff8533cc;
+}
+
+a {
+  text-decoration: none;
+  color: inherit;
+  font-weight: bold;
+  display: block;
+  user-select: none;
+}
+
+a:hover {
+  text-decoration: underline;
+  color: #ffaa66;
+}
+
+footer {
+  margin-top: 50px;
+  text-align: center;
+  font-size: 13px;
+  color: #b98b65;
+  text-shadow: 1px 1px 2px #000000;
+}

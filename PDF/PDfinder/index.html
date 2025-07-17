@@ -1,0 +1,343 @@
+﻿<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <title>Busca em PDFs - Pesquisa rápida e eficiente</title>
+  <meta name="description" content="Busque palavras ou frases dentro de múltiplos arquivos PDF localizados em seu dispositivo. Ferramenta leve, rápida e com visual moderno em tema escuro." />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.9.179/pdf.min.js"></script>
+  <style>
+    :root {
+      --bg: #121214;
+      --fg: #e1e1e6;
+      --accent: #4ea1f3;
+      --muted: #999999;
+      --highlight: #ffd966;
+      --card-bg: #1e1e28;
+      --btn-bg: #2a2a36;
+      --btn-hover: #3a3a4a;
+      --footer-bg: #18181f;
+    }
+    * {
+      box-sizing: border-box;
+    }
+    body {
+      margin: 0; padding: 20px;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: var(--bg);
+      color: var(--fg);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+    header h2 {
+      margin: 0;
+      color: var(--accent);
+      font-size: 1.8rem;
+      user-select: none;
+    }
+    #btn-voltar {
+      background-color: var(--btn-bg);
+      color: var(--fg);
+      border: none;
+      padding: 6px 14px;
+      font-size: 0.9rem;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: background-color 0.25s ease;
+    }
+    #btn-voltar:hover {
+      background-color: var(--btn-hover);
+    }
+    #descricao {
+      font-size: 1rem;
+      color: var(--muted);
+      max-width: 600px;
+      margin-bottom: 20px;
+      user-select: none;
+    }
+    input[type="text"] {
+      background-color: #2e2e3a;
+      color: var(--fg);
+      border: 1px solid #444;
+      padding: 8px;
+      font-size: 1rem;
+      border-radius: 4px;
+      width: 300px;
+      max-width: 100%;
+      outline-offset: 2px;
+      outline-color: var(--accent);
+    }
+    button {
+      background-color: var(--accent);
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      margin-left: 8px;
+      font-size: 1rem;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: background-color 0.2s;
+      user-select: none;
+    }
+    button:hover {
+      background-color: #3688dc;
+    }
+    #status {
+      margin-top: 10px;
+      font-weight: 600;
+      color: var(--muted);
+      user-select: none;
+    }
+    #filtros {
+      margin-top: 25px;
+    }
+    #filtros strong {
+      user-select: none;
+      color: var(--muted);
+    }
+    #filtros button {
+      background-color: var(--btn-bg);
+      color: var(--fg);
+      border: 1px solid #555;
+      margin-right: 6px;
+      margin-top: 6px;
+      user-select: none;
+    }
+    #filtros button:hover {
+      background-color: var(--btn-hover);
+    }
+    #resultado {
+      margin-top: 25px;
+      margin-bottom: 40px;
+    }
+    .resultado-item {
+      background-color: var(--card-bg);
+      padding: 15px 20px;
+      margin-top: 18px;
+      border-radius: 8px;
+      border: 1px solid #333;
+      position: relative;
+      cursor: pointer;
+      user-select: none;
+      transition: background-color 0.15s ease;
+    }
+    .resultado-item:hover {
+      background-color: #2f2f42;
+    }
+    .resultado-item strong {
+      color: var(--accent);
+      font-size: 1rem;
+      word-break: break-word;
+    }
+    .info {
+      display: block;
+      margin-top: 6px;
+      font-size: 0.9rem;
+      color: var(--muted);
+      user-select: text;
+    }
+    .tooltip {
+      display: none;
+      background: #333;
+      border: 1px solid #555;
+      color: #eee;
+      padding: 12px 15px;
+      position: absolute;
+      z-index: 10;
+      top: 100%;
+      left: 0;
+      max-width: 600px;
+      font-size: 0.9rem;
+      border-radius: 5px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.6);
+      white-space: pre-wrap;
+      margin-top: 6px;
+      user-select: text;
+    }
+    .match {
+      background-color: var(--highlight);
+      color: #000;
+      padding: 0 3px;
+      border-radius: 2px;
+      font-weight: 700;
+    }
+    @media (max-width: 600px) {
+      input[type="text"] {
+        width: 100%;
+      }
+      .tooltip {
+        max-width: 90vw;
+        left: 50%;
+        transform: translateX(-50%);
+      }
+      header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+      }
+      #btn-voltar {
+        align-self: flex-end;
+      }
+    }
+    footer {
+      background-color: var(--footer-bg);
+      color: var(--muted);
+      font-size: 0.9rem;
+      padding: 15px 20px;
+      border-top: 1px solid #222;
+      text-align: center;
+      user-select: none;
+    }
+    footer a {
+      color: var(--accent);
+      text-decoration: none;
+      font-weight: 600;
+    }
+    footer a:hover {
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h2>Busca em Arquivos PDF</h2>
+    <button id="btn-voltar" onclick="history.back()">← Voltar</button>
+  </header>
+
+  <div id="descricao">
+    Pesquise palavras ou frases dentro de seus arquivos PDF localizados no dispositivo. Rápido, fácil e eficiente para encontrar informações relevantes sem abrir cada arquivo. <strong>Relativamente lento, dependendo do volume de arquivos.</strong>
+  </div>
+
+  <input type="text" id="termo" placeholder="Digite a palavra ou frase para buscar" />
+  <button onclick="selecionarPastaPdf()">Selecionar Pasta</button>
+  <button onclick="buscarTextoPdf()">Buscar</button>
+
+  <div id="status"></div>
+
+  <div id="resumo"></div>
+
+  <div id="filtros">
+    <strong>Ordenar por:</strong>
+    <button onclick="ordenarResultados('modificado', 'desc')">Mais Recente</button>
+    <button onclick="ordenarResultados('modificado', 'asc')">Mais Antigo</button>
+    <button onclick="ordenarResultados('tamanho', 'desc')">Maior Tamanho</button>
+    <button onclick="ordenarResultados('tamanho', 'asc')">Menor Tamanho</button>
+    <button onclick="ordenarResultados('ocorrencias', 'desc')">Mais Ocorrências</button>
+    <button onclick="ordenarResultados('ocorrencias', 'asc')">Menos Ocorrências</button>
+  </div>
+
+  <div id="resultado"></div>
+  <footer>
+    Desenvolvido por José Roberto Friederich.<br/>
+    Contato: <a href="mailto:joserobertofriederich@gmail.com">joserobertofriederich@gmail.com</a><br/>
+    Última atualização: 13 de julho de 2025
+  </footer>
+
+  <script>
+    let arquivosPdf = [];
+    let resultadosPdf = [];
+
+    async function selecionarPastaPdf() {
+      const dirHandle = await window.showDirectoryPicker();
+      arquivosPdf = [];
+      resultadosPdf = [];
+      await lerPdfDiretorio(dirHandle);
+      document.getElementById('resumo').innerHTML = `${arquivosPdf.length} arquivo(s) PDF encontrado(s).`;
+      document.getElementById('resultado').innerHTML = '';
+      document.getElementById('status').textContent = '';
+    }
+
+    async function lerPdfDiretorio(dirHandle, path = '') {
+      for await (const entry of dirHandle.values()) {
+        const fullPath = path + '/' + entry.name;
+        if (entry.kind === 'file' && entry.name.toLowerCase().endsWith('.pdf')) {
+          const file = await entry.getFile();
+          arquivosPdf.push({ nome: fullPath, file });
+        } else if (entry.kind === 'directory') {
+          await lerPdfDiretorio(entry, fullPath);
+        }
+      }
+    }
+
+    async function buscarTextoPdf() {
+      const termo = document.getElementById('termo').value.trim();
+      if (!termo) {
+        alert('Digite um termo para buscar.');
+        return;
+      }
+
+      document.getElementById('status').textContent = 'Buscando...';
+      resultadosPdf = [];
+
+      for (const { nome, file } of arquivosPdf) {
+        const arrayBuffer = await file.arrayBuffer();
+        const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+        let textoCompleto = '';
+        for (let i = 1; i <= pdf.numPages; i++) {
+          const page = await pdf.getPage(i);
+          const textContent = await page.getTextContent();
+          const textos = textContent.items.map(i => i.str).join(' ');
+          textoCompleto += textos + '\n';
+        }
+        const regex = new RegExp(termo, 'gi');
+        const ocorrencias = (textoCompleto.match(regex) || []).length;
+        if (ocorrencias > 0) {
+          resultadosPdf.push({
+            nome,
+            ocorrencias,
+            textoCompleto,
+            tamanho: file.size,
+            modificado: file.lastModified || 0
+          });
+        }
+      }
+
+      mostrarResultados();
+      document.getElementById('status').textContent = `Busca concluída. ${resultadosPdf.length} arquivo(s) com ocorrências.`;
+    }
+
+    function mostrarResultados() {
+      const divResultado = document.getElementById('resultado');
+      divResultado.innerHTML = '';
+      const termo = document.getElementById('termo').value.trim();
+      const regexHighlight = new RegExp(`(${termo.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+
+      resultadosPdf.forEach(({ nome, ocorrencias, textoCompleto }) => {
+        const trecho = textoCompleto.slice(0, 300).replace(regexHighlight, '<span class="match">$1</span>');
+
+        const item = document.createElement('div');
+        item.classList.add('resultado-item');
+        item.tabIndex = 0;
+        item.innerHTML = `
+          <strong>${nome}</strong>
+          <span class="info">Ocorrências: ${ocorrencias}</span>
+          <div class="tooltip">${textoCompleto.replace(regexHighlight, '<span class="match">$1</span>')}</div>
+        `;
+
+        item.onclick = () => {
+          const tooltip = item.querySelector('.tooltip');
+          tooltip.style.display = tooltip.style.display === 'block' ? 'none' : 'block';
+        };
+
+        divResultado.appendChild(item);
+      });
+    }
+
+    function ordenarResultados(campo, ordem) {
+      resultadosPdf.sort((a, b) => {
+        if (ordem === 'asc') return a[campo] - b[campo];
+        else return b[campo] - a[campo];
+      });
+      mostrarResultados();
+    }
+  </script>
+</body>
+</html>

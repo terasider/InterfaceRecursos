@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8" />
+  <title>Comparador de Texto PDF – Dakialem</title>
+
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', sans-serif;
+      background-color: #f7f9fc;
+      color: #333;
+    }
+
+    header {
+      background-color: #003366;
+      color: #fff;
+      padding: 20px;
+      text-align: center;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+
+    header h1 {
+      margin: 0;
+      font-size: 1.8rem;
+    }
+
+    main {
+      padding: 30px 20px;
+      max-width: 1200px;
+      margin: auto;
+    }
+
+    .upload-section {
+      margin-bottom: 20px;
+    }
+
+    label {
+      font-weight: bold;
+      display: block;
+      margin-bottom: 5px;
+    }
+
+    input[type="file"] {
+      padding: 5px;
+    }
+
+    .file-name {
+      font-size: 0.9rem;
+      color: #666;
+      margin-bottom: 15px;
+    }
+
+    button {
+      background-color: #0066cc;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      font-size: 1rem;
+      cursor: pointer;
+      margin-top: 10px;
+    }
+
+    button:hover {
+      background-color: #004999;
+    }
+
+    .stats-summary {
+      margin-top: 25px;
+      background: #ffffff;
+      padding: 15px 20px;
+      border-left: 4px solid #0066cc;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    }
+
+    .stats-summary h3 {
+      margin-top: 0;
+      font-size: 1.2rem;
+    }
+
+.result-container {
+  display: flex;
+  gap: 20px;
+  justify-content: space-between;
+  flex-wrap: nowrap;
+}
+
+.text-block {
+  flex: 0 0 49%;
+  box-sizing: border-box;
+  background-color: #fff;
+  border: 1px solid #ccc;
+  padding: 10px;
+  overflow-y: auto;
+  max-height: 600px;
+  white-space: pre-wrap;
+  text-align: left;
+  font-family: monospace;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+
+
+    .highlight1 {
+      background-color: #ffd6d6;
+    }
+
+    .highlight2 {
+      background-color: #d6ffd6;
+    }
+
+    footer {
+      text-align: center;
+      padding: 20px;
+      background-color: #003366;
+      color: white;
+      margin-top: 40px;
+    }
+  </style>
+
+
+<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-4965380248899380"
+     crossorigin="anonymous"></script>
+
+<script src="https://unpkg.com/diff-match-patch@1.0.5/index.js"></script>
+</head>
+
+<body>
+  <header>
+    <h1>Comparador de Texto PDF – Dakialem</h1>
+ 
+
+<a href="../../index.html" class="btn-voltar">Voltar à Página Inicial</a>
+  <main>
+
+ </header>
+
+    <div class="upload-section">
+      <label for="pdf1">Carregar PDF 1:</label>
+      <input type="file" id="pdf1" accept="application/pdf" onchange="showFileName(this, 'fileName1')" />
+      <div class="file-name" id="fileName1">Nenhum arquivo selecionado</div>
+
+      <label for="pdf2">Carregar PDF 2:</label>
+      <input type="file" id="pdf2" accept="application/pdf" onchange="showFileName(this, 'fileName2')" />
+      <div class="file-name" id="fileName2">Nenhum arquivo selecionado</div>
+
+      <button onclick="comparePDFText()">Comparar</button>
+    </div>
+
+    <div class="stats-summary" id="statsSummary" style="display: none;">
+      <h3>Resumo da Comparação:</h3>
+      <div id="statsContent"></div>
+    </div>
+
+    <div class="result-container">
+      <div class="text-block" id="text1"><strong>PDF 1</strong><br><br></div>
+      <div class="text-block" id="text2"><strong>PDF 2</strong><br><br></div>
+    </div>
+  </main>
+
+  <footer>
+    &copy; 2025 Dakialem. Todos os direitos reservados.
+  </footer>
+
+<section style="max-width:600px;margin:40px auto;padding:30px;text-align:center;background:#fff;border-radius:12px;box-shadow:0 4px 12px rgba(0,0,0,0.1);font-family:sans-serif;">
+  <h2 style="color:#1e88e5;font-size:22px;margin-bottom:16px;">Soluções inteligentes para o seu dia a dia</h2>
+  <p style="font-size:16px;line-height:1.6;margin-bottom:20px;">
+    Sou um programador independente que utiliza inteligência artificial para criar <strong>ferramentas simples, diretas e úteis</strong>, pensadas para estudantes e profissionais que valorizam seu tempo.
+  </p>
+  <p style="font-size:16px;line-height:1.6;margin-bottom:20px;">
+    Se esta ferramenta te ajudou, <strong>explore outras disponíveis no site</strong> e compartilhe com quem possa se beneficiar.
+  </p>
+  <h3 style="font-size:18px;margin-top:30px;margin-bottom:12px;"> Apoie este projeto</h3>
+  <p style="font-size:16px;line-height:1.6;margin-bottom:10px;">
+    Se você acredita nesse propósito, considere fazer um donativo via Pix para ajudar a manter e expandir o projeto:
+  </p>
+  <p style="font-size:16px;font-weight:bold;background:#f0f0f0;padding:8px 12px;display:inline-block;border-radius:6px;">
+    bd761c02-9772-4112-9b8a-b9b0526690fc
+  </p>
+  <div>
+    <img src="../../donativopix/pix.jpeg" alt="QR Code Pix" style="margin-top:20px;max-width:220px;width:100%;height:auto;border-radius:8px;">
+  </div>
+</section>
+
+
+  <!-- PDF.js -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
+
+  <script>
+    const PDFJS = window['pdfjsLib'];
+    PDFJS.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
+
+    function showFileName(input, labelId) {
+      const label = document.getElementById(labelId);
+      label.textContent = input.files.length ? input.files[0].name : 'Nenhum arquivo selecionado';
+    }
+
+    async function extractTextFromPDF(file) {
+      const buffer = await file.arrayBuffer();
+      const pdf = await PDFJS.getDocument({ data: buffer }).promise;
+      let fullText = [];
+
+      for (let i = 1; i <= pdf.numPages; i++) {
+        const page = await pdf.getPage(i);
+        const content = await page.getTextContent();
+        const strings = content.items.map(item => item.str.trim()).filter(str => str);
+        fullText.push(strings.join(" "));
+      }
+
+      return fullText.join("\n").trim();
+    }
+
+ function diffWords(text1, text2) {
+  const dmp = new diff_match_patch();
+  const diffs = dmp.diff_main(text1, text2);
+  dmp.diff_cleanupSemantic(diffs);
+
+  let result1 = '', result2 = '';
+
+  diffs.forEach(([op, data]) => {
+    switch (op) {
+      case 0: // Igual
+        result1 += data;
+        result2 += data;
+        break;
+      case -1: // Apenas no texto 1
+        result1 += `<span class="highlight1">${data}</span>`;
+        break;
+      case 1: // Apenas no texto 2
+        result2 += `<span class="highlight2">${data}</span>`;
+        break;
+    }
+  });
+
+  return [result1, result2];
+}
+
+
+    function countStats(text) {
+      const words = text.trim().split(/\s+/).filter(Boolean);
+      const characters = text.replace(/\s+/g, '');
+      return {
+        wordCount: words.length,
+        charCount: characters.length
+      };
+    }
+
+    function getDiffPercentage(val1, val2) {
+      if (val1 === 0 && val2 === 0) return '0%';
+      const diff = Math.abs(val1 - val2);
+      const base = Math.max(val1, val2);
+      return ((diff / base) * 100).toFixed(2) + '%';
+    }
+
+    async function comparePDFText() {
+      const file1 = document.getElementById('pdf1').files[0];
+      const file2 = document.getElementById('pdf2').files[0];
+      const out1 = document.getElementById('text1');
+      const out2 = document.getElementById('text2');
+      const statsDiv = document.getElementById('statsSummary');
+      const statsContent = document.getElementById('statsContent');
+
+      if (!file1 || !file2) {
+        alert("Selecione os dois arquivos PDF.");
+        return;
+      }
+
+      out1.innerHTML = "<em>Extraindo texto do PDF 1...</em>";
+      out2.innerHTML = "<em>Extraindo texto do PDF 2...</em>";
+      statsDiv.style.display = "none";
+
+      const [text1, text2] = await Promise.all([
+        extractTextFromPDF(file1),
+        extractTextFromPDF(file2)
+      ]);
+
+      const [diff1, diff2] = diffWords(text1, text2);
+
+      const stats1 = countStats(text1);
+      const stats2 = countStats(text2);
+
+      const wordDiff = getDiffPercentage(stats1.wordCount, stats2.wordCount);
+      const charDiff = getDiffPercentage(stats1.charCount, stats2.charCount);
+
+      statsContent.innerHTML = `
+        <strong>PDF 1:</strong> ${stats1.wordCount} palavras, ${stats1.charCount} caracteres<br>
+        <strong>PDF 2:</strong> ${stats2.wordCount} palavras, ${stats2.charCount} caracteres<br><br>
+        <strong>Diferença de palavras:</strong> ${wordDiff}<br>
+        <strong>Diferença de caracteres:</strong> ${charDiff}
+      `;
+      statsDiv.style.display = "block";
+
+      out1.innerHTML = "<strong>PDF 1</strong><br><br>" + diff1;
+      out2.innerHTML = "<strong>PDF 2</strong><br><br>" + diff2;
+    }
+  </script>
+
+</body>
+</html>

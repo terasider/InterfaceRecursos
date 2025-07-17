@@ -1,0 +1,259 @@
+﻿<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Agrupador de PDFs por Critério</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #111;
+      color: #ffeb3b;
+      margin: 0;
+      padding: 0;
+    }
+    header {
+      background: #222;
+      padding: 20px;
+      text-align: center;
+      border-bottom: 2px solid #444;
+    }
+    header h1 {
+      margin: 0;
+      font-size: 24px;
+    }
+    main {
+      padding: 20px;
+      max-width: 800px;
+      margin: auto;
+    }
+    label {
+      display: block;
+      margin-top: 1rem;
+      font-weight: bold;
+    }
+    input[type="file"], select {
+      padding: 10px;
+      margin-top: 5px;
+      width: 100%;
+      background: #222;
+      color: #ffeb3b;
+      border: 1px solid #555;
+    }
+    button {
+      margin-top: 1.5rem;
+      padding: 12px 18px;
+      background: #ffeb3b;
+      color: #000;
+      font-weight: bold;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    button:disabled {
+      background: #666;
+      cursor: not-allowed;
+    }
+    .group {
+      background: #1e1e1e;
+      margin-top: 20px;
+      padding: 15px;
+      border-left: 5px solid #ffeb3b;
+      border-radius: 5px;
+    }
+    .group-title {
+      font-weight: bold;
+      margin-bottom: 10px;
+    }
+    .file-item {
+      margin-left: 15px;
+      font-size: 0.9rem;
+    }
+    footer {
+      background: #222;
+      color: #aaa;
+      padding: 20px;
+      text-align: center;
+      font-size: 14px;
+      border-top: 1px solid #444;
+      margin-top: 40px;
+    }
+    .description {
+      margin-top: 40px;
+      background: #1a1a1a;
+      padding: 20px;
+      border-radius: 8px;
+      line-height: 1.6;
+      color: #ddd;
+    }
+
+.btn-voltar {
+  display: inline-block;
+  margin-bottom: 1.5rem;
+  padding: 10px 16px;
+  background-color: #ffeb3b;
+  color: #000;
+  text-decoration: none;
+  font-weight: bold;
+  border-radius: 6px;
+  transition: background 0.3s ease;
+}
+.btn-voltar:hover {
+  background-color: #fdd835;
+  text-decoration: underline;
+}
+
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Agrupador de PDFs por Critério</h1>
+<br>
+<a href="../../index.html" class="btn-voltar">← Voltar à Página Inicial</a>
+
+  </header>
+  <main>
+    <label for="pdfFiles">Selecione seus arquivos PDF:</label>
+    <input type="file" id="pdfFiles" multiple accept="application/pdf" />
+
+    <label for="rule">Escolha o critério de agrupamento:</label>
+    <select id="rule">
+      <option value="name">Nome do Arquivo</option>
+      <option value="number">Número no Nome</option>
+      <option value="date">Data no Nome</option>
+      <option value="modified">Data de Modificação</option>
+    </select>
+
+    <button id="groupBtn" disabled>Agrupar e Baixar PDFs</button>
+
+    <div id="groups"></div>
+
+    <div class="description">
+      <h2>O que este programa faz?</h2>
+      <p>Este agrupador de PDFs foi projetado para facilitar a vida de quem lida com muitos documentos. Ele permite que você envie diversos arquivos PDF e escolha uma forma de agrupá-los automaticamente com base em:</p>
+      <ul>
+        <li><strong>Nome</strong>: arquivos com o mesmo nome (sem extensão) são agrupados juntos.</li>
+        <li><strong>Número</strong>: extrai números do nome e agrupa por similaridade.</li>
+        <li><strong>Data no nome</strong>: identifica datas no nome do arquivo e usa como agrupamento.</li>
+        <li><strong>Data de modificação</strong>: agrupa arquivos com base na data que foram alterados (útil para arquivos baixados no mesmo dia).</li>
+      </ul>
+      <p>Depois de agrupados, você pode baixar os grupos como arquivos PDF únicos, facilitando a organização e o compartilhamento. Ideal para estudantes, advogados, professores e quem trabalha com relatórios ou avaliações em lote.</p>
+      <p>Funciona direto no navegador, sem instalar nada. Seguro, gratuito e prático!</p>
+    </div>
+  </main>
+  <footer>
+    Desenvolvido por José Roberto Friederich.<br/>
+    Contato: <a href="mailto:joserobertofriederich@gmail.com">joserobertofriederich@gmail.com</a><br/>
+    Última atualização: 13 de julho de 2025
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/pdf-lib/dist/pdf-lib.min.js"></script>
+  <script>
+    const input = document.getElementById('pdfFiles');
+    const btn = document.getElementById('groupBtn');
+    const rule = document.getElementById('rule');
+    const groups = document.getElementById('groups');
+    let files = [];
+
+    input.addEventListener('change', () => {
+      files = Array.from(input.files);
+      btn.disabled = files.length === 0;
+      groups.innerHTML = '';
+    });
+
+    function extractNumber(name) {
+      const m = name.match(/\d+/);
+      return m ? m[0] : 'sem-numero';
+    }
+
+    function extractDate(name) {
+      const patterns = [/\b(\d{2})[\/\-](\d{2})[\/\-](\d{4})\b/, /\b(\d{4})[\/\-](\d{2})[\/\-](\d{2})\b/];
+      for (let p of patterns) {
+        const m = name.match(p);
+        if (m) return p === patterns[0] ? `${m[3]}-${m[2]}-${m[1]}` : `${m[1]}-${m[2]}-${m[3]}`;
+      }
+      return 'sem-data';
+    }
+
+    function extractModDate(file) {
+      const d = new Date(file.lastModified);
+      return d.toISOString().split('T')[0];
+    }
+
+    function agruparArquivos(files, criterio) {
+      const grupos = {};
+      for (let file of files) {
+        const nome = file.name.toLowerCase();
+        let chave = 'outros';
+        if (criterio === 'name') chave = nome.replace('.pdf', '');
+        else if (criterio === 'number') chave = extractNumber(nome);
+        else if (criterio === 'date') chave = extractDate(nome);
+        else if (criterio === 'modified') chave = extractModDate(file);
+        if (!grupos[chave]) grupos[chave] = [];
+        grupos[chave].push(file);
+      }
+      return grupos;
+    }
+
+    async function mergePdfs(lista) {
+      const novoPdf = await PDFLib.PDFDocument.create();
+      for (let file of lista) {
+        const buf = await file.arrayBuffer();
+        const doc = await PDFLib.PDFDocument.load(buf);
+        const paginas = await novoPdf.copyPages(doc, doc.getPageIndices());
+        paginas.forEach(p => novoPdf.addPage(p));
+      }
+      return await novoPdf.save();
+    }
+
+    btn.addEventListener('click', async () => {
+      btn.disabled = true;
+      groups.innerHTML = '<p>Agrupando...</p>';
+      const criterio = rule.value;
+      const agrupados = agruparArquivos(files, criterio);
+      groups.innerHTML = '';
+
+      for (let chave in agrupados) {
+        const div = document.createElement('div');
+        div.className = 'group';
+        const titulo = document.createElement('div');
+        titulo.className = 'group-title';
+        titulo.textContent = `Grupo: ${chave} (${agrupados[chave].length} arquivo${agrupados[chave].length > 1 ? 's' : ''})`;
+        div.appendChild(titulo);
+
+        agrupados[chave].forEach(arq => {
+          const span = document.createElement('div');
+          span.className = 'file-item';
+          span.textContent = arq.name;
+          div.appendChild(span);
+        });
+
+        const btnDownload = document.createElement('button');
+        btnDownload.textContent = 'Baixar PDF Agrupado';
+        btnDownload.onclick = async () => {
+          btnDownload.disabled = true;
+          btnDownload.textContent = 'Processando...';
+          try {
+            const bytes = await mergePdfs(agrupados[chave]);
+            const blob = new Blob([bytes], { type: 'application/pdf' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `agrupado_${chave}.pdf`;
+            a.click();
+            URL.revokeObjectURL(url);
+          } catch (e) {
+            alert('Erro ao gerar PDF: ' + e.message);
+          }
+          btnDownload.textContent = 'Baixar PDF Agrupado';
+          btnDownload.disabled = false;
+        };
+
+        div.appendChild(btnDownload);
+        groups.appendChild(div);
+      }
+      btn.disabled = false;
+    });
+  </script>
+</body>
+</html>

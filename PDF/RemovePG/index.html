@@ -1,0 +1,203 @@
+﻿<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Remover Páginas do PDF</title>
+  <meta name="description" content="Ferramenta gratuita e online para remover páginas indesejadas de arquivos PDF. Desenvolvida para ser simples, rápida e eficiente, esta aplicação permite excluir páginas específicas ou intervalos inteiros de um PDF diretamente do navegador, com total segurança e privacidade.">
+  <style>
+    body {
+      font-family: sans-serif;
+      padding: 20px;
+      background: #121212;
+      color: #e0e0e0;
+      max-width: 700px;
+      margin: auto;
+    }
+    h1 {
+      font-size: 22px;
+      color: #90caf9;
+      margin-bottom: 10px;
+    }
+    .btn-voltar {
+      display: inline-block;
+      margin-bottom: 20px;
+      padding: 8px 12px;
+      background-color: #424242;
+      color: #fff;
+      text-decoration: none;
+      border-radius: 4px;
+    }
+    .btn-voltar:hover {
+      background-color: #616161;
+    }
+    .descricao {
+      margin-bottom: 25px;
+      font-size: 15px;
+      color: #cccccc;
+      line-height: 1.5;
+    }
+    label {
+      display: block;
+      margin-top: 10px;
+      color: #bbdefb;
+    }
+    input[type="text"], input[type="file"] {
+      width: 100%;
+      padding: 8px;
+      margin-top: 5px;
+      background: #1e1e1e;
+      border: 1px solid #444;
+      color: #fff;
+    }
+    button {
+      margin-top: 20px;
+      padding: 10px 15px;
+      font-size: 16px;
+      background-color: #1976d2;
+      color: #fff;
+      border: none;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #1565c0;
+    }
+    #status {
+      margin-top: 10px;
+      font-style: italic;
+      color: #81d4fa;
+    }
+    footer {
+      margin-top: 40px;
+      padding-top: 10px;
+      border-top: 1px solid #333;
+      font-size: 14px;
+      color: #aaa;
+    }
+    footer a {
+      color: #90caf9;
+      text-decoration: none;
+    }
+    footer a:hover {
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+  <h1>Remover Páginas de um PDF</h1>
+  <a href="../../index.html" class="btn-voltar">← Voltar à Página Inicial</a>
+
+
+  <label for="pdfInput">Selecione um arquivo PDF:</label>
+  <input type="file" id="pdfInput" accept=".pdf" />
+
+  <label for="pageRanges">Páginas a remover (ex: 1,3,5-7):</label>
+  <input type="text" id="pageRanges" placeholder="Ex: 1,3,5-7" />
+
+  <button id="extractBtn">Remover e Baixar PDF</button>
+  <div id="status"></div>
+
+  <div class="descricao">
+    Ferramenta online gratuita para remoção de páginas indesejadas em arquivos PDF. Ideal para estudantes, professores, advogados, profissionais de escritório ou qualquer pessoa que precise editar documentos PDF rapidamente, sem instalar programas. Basta selecionar o arquivo, informar as páginas a remover (como "2,4,7-9") e gerar um novo PDF enxuto. Todo o processamento acontece localmente no navegador, garantindo privacidade e segurança total. Este utilitário faz parte de uma coleção de ferramentas úteis e de uso livre, desenvolvidas para facilitar tarefas digitais do cotidiano.
+  </div>
+  <footer>
+  Desenvolvido por José Roberto Friederich.<br/>
+  Contato: <a href="mailto:joserobertofriederich@gmail.com">joserobertofriederich@gmail.com</a><br/>
+  Última atualização: 13 de julho de 2025, 09:44 AM
+  <hr style="margin: 15px 0; border-color: #333;">
+  <p style="font-size: 15px; color: #ccc;">
+    Sou um programador que trabalha com inteligência artificial para criar soluções simples para problemas reais. Meu objetivo é economizar seu tempo, eliminando tarefas repetitivas e desnecessárias do dia a dia.
+  </p>
+  <p style="margin-top: 10px;">
+    <strong>Se esta ferramenta te ajudou, explore outras utilidades no site e compartilhe com quem pode se beneficiar.</strong>
+  </p>
+</footer>
+
+  <script src="https://unpkg.com/pdf-lib/dist/pdf-lib.min.js"></script>
+  <script>
+    const pdfInput = document.getElementById('pdfInput');
+    const pageRanges = document.getElementById('pageRanges');
+    const extractBtn = document.getElementById('extractBtn');
+    const statusDiv = document.getElementById('status');
+
+    function parsePageRanges(rangeString, totalPages) {
+      const pages = new Set();
+      const parts = rangeString.split(',').map(p => p.trim());
+
+      for (let part of parts) {
+        if (part.includes('-')) {
+          const [start, end] = part.split('-').map(Number);
+          if (!isNaN(start) && !isNaN(end)) {
+            for (let i = start; i <= end; i++) {
+              if (i >= 1 && i <= totalPages) pages.add(i - 1);
+            }
+          }
+        } else {
+          const page = parseInt(part);
+          if (!isNaN(page) && page >= 1 && page <= totalPages) {
+            pages.add(page - 1);
+          }
+        }
+      }
+
+      return pages;
+    }
+
+    extractBtn.onclick = async () => {
+      const file = pdfInput.files[0];
+      if (!file || !file.name.toLowerCase().endsWith('.pdf')) {
+        alert("Por favor, selecione um arquivo PDF válido.");
+        return;
+      }
+
+      const rangeInput = pageRanges.value.trim();
+      if (!rangeInput) {
+        alert("Digite as páginas que deseja remover.");
+        return;
+      }
+
+      try {
+        statusDiv.textContent = "Processando...";
+        const arrayBuffer = await file.arrayBuffer();
+        const pdf = await PDFLib.PDFDocument.load(arrayBuffer);
+        const totalPages = pdf.getPageCount();
+
+        const pagesToRemove = parsePageRanges(rangeInput, totalPages);
+        if (pagesToRemove.size === 0) {
+          alert("Nenhuma página válida selecionada para remoção.");
+          statusDiv.textContent = "";
+          return;
+        }
+
+        const newPdf = await PDFLib.PDFDocument.create();
+        const pagesToKeep = [];
+        for (let i = 0; i < totalPages; i++) {
+          if (!pagesToRemove.has(i)) pagesToKeep.push(i);
+        }
+
+        if (pagesToKeep.length === 0) {
+          alert("Todas as páginas foram removidas. Nada para salvar.");
+          statusDiv.textContent = "";
+          return;
+        }
+
+        const copiedPages = await newPdf.copyPages(pdf, pagesToKeep);
+        copiedPages.forEach(page => newPdf.addPage(page));
+
+        const newPdfBytes = await newPdf.save();
+        const blob = new Blob([newPdfBytes], { type: 'application/pdf' });
+
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = 'PDF_Sem_Paginas_Removidas.pdf';
+        link.click();
+
+        statusDiv.textContent = "Remoção concluída!";
+      } catch (err) {
+        console.error(err);
+        statusDiv.textContent = "Erro ao processar o PDF.";
+      }
+    };
+  </script>
+</body>
+</html>

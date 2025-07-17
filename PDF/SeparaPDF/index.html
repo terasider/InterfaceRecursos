@@ -1,0 +1,243 @@
+﻿<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <title>Extrair Páginas do PDF</title>
+  <style>
+    :root {
+      --bg: #111;
+      --fg: #fff;
+      --accent: #ffc107;
+      --input-bg: #222;
+      --input-border: #444;
+    }
+
+    body {
+      font-family: Arial, sans-serif;
+      background: var(--bg);
+      color: var(--fg);
+      margin: 0;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 700px;
+      background: #1a1a1a;
+      padding: 30px;
+      border: 1px solid var(--input-border);
+      border-radius: 8px;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+    }
+
+    h1 {
+      font-size: 24px;
+      color: var(--accent);
+      margin-bottom: 20px;
+    }
+
+    label {
+      margin-top: 15px;
+      display: block;
+    }
+
+    input[type="text"], input[type="file"] {
+      width: 100%;
+      padding: 10px;
+      margin-top: 5px;
+      border: 1px solid var(--input-border);
+      border-radius: 4px;
+      background-color: var(--input-bg);
+      color: var(--fg);
+      font-size: 14px;
+    }
+
+    button {
+      margin-top: 20px;
+      padding: 12px 20px;
+      background-color: var(--accent);
+      color: #000;
+      font-weight: bold;
+      font-size: 15px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+
+    button:hover {
+      background-color: #e0a800;
+    }
+
+    #status {
+      margin-top: 15px;
+      font-style: italic;
+      color: #ccc;
+    }
+
+    footer {
+      margin-top: 60px;
+      font-size: 14px;
+      color: #999;
+      text-align: center;
+      border-top: 1px solid #333;
+      padding: 20px;
+    }
+
+    footer a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+
+    .description {
+      max-width: 800px;
+      margin: 60px auto;
+      color: #ddd;
+      font-size: 15px;
+      line-height: 1.6;
+      text-align: justify;
+    }
+.btn-voltar {
+  display: inline-block;
+  margin-bottom: 1.5rem;
+  padding: 10px 16px;
+  background-color: #ffeb3b;
+  color: #000;
+  text-decoration: none;
+  font-weight: bold;
+  border-radius: 6px;
+  transition: background 0.3s ease;
+}
+.btn-voltar:hover {
+  background-color: #fdd835;
+  text-decoration: underline;
+}
+
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Extrair Páginas de um PDF</h1>
+<br>
+<a href="../../index.html" class="btn-voltar">← Voltar à Página Inicial</a>
+<br>
+    <label for="pdfInput">Selecione um arquivo PDF:</label>
+    <input type="file" id="pdfInput" accept=".pdf" />
+
+    <label for="pageRanges">Páginas a extrair (ex: 1,3,5-7):</label>
+    <input type="text" id="pageRanges" placeholder="Ex: 1,3,5-7" />
+
+    <button id="extractBtn">Extrair e Baixar PDF</button>
+    <div id="status"></div>
+  </div>
+
+  <footer>
+    Desenvolvido por José Roberto Friederich.<br />
+    Contato: <a href="mailto:joserobertofriederich@gmail.com">joserobertofriederich@gmail.com</a><br />
+    Última atualização: 12 de julho de 2025, 23:11 PM
+  </footer>
+
+  <div class="description">
+    <h2 style="color: var(--accent)">Sobre esta ferramenta</h2>
+    <p>
+      Esta página permite que você extraia páginas específicas de um arquivo PDF de forma simples, rápida e segura. Ela foi criada para atender quem precisa selecionar apenas algumas partes de um documento extenso, como artigos, contratos, trabalhos escolares, materiais de estudo ou documentos administrativos.
+    </p>
+    <p>
+      Diferente de muitos serviços online, que enviam seu arquivo para servidores remotos, esta ferramenta funciona completamente no seu navegador, usando a biblioteca <strong>pdf-lib</strong> em JavaScript. Isso garante mais segurança, confidencialidade e velocidade, pois nenhum dado é transmitido para fora do seu dispositivo.
+    </p>
+    <p>
+      O funcionamento é direto: selecione o arquivo PDF, digite as páginas que deseja manter (por exemplo, <code>1,2,5-7</code> para manter as páginas 1, 2 e da 5 até a 7), e clique em "Extrair e Baixar PDF". A ferramenta processa seu documento internamente e imediatamente gera um novo PDF com apenas as páginas indicadas. Ele é automaticamente baixado para o seu computador.
+    </p>
+    <p>
+      O design foi pensado para ser claro e funcional, com uma interface responsiva em tons escuros e detalhes em amarelo, adequada tanto para uso diurno quanto noturno. Além disso, a página conta com rodapé de identificação do autor e está otimizada para motores de busca (SEO), com esta descrição informativa e estruturada.
+    </p>
+    <p>
+      Essa solução é especialmente útil para profissionais do direito, educadores, estudantes, designers, programadores e qualquer pessoa que trabalhe com PDFs grandes e precise extrair trechos específicos para compartilhar ou arquivar. É compatível com os principais navegadores modernos (Chrome, Firefox, Edge) e pode ser usada tanto em computadores quanto em tablets.
+    </p>
+    <p>
+      Como o código é leve e sem dependências de servidor, esta página pode inclusive ser baixada e usada offline, bastando salvar o arquivo HTML. Caso queira contribuir com sugestões de melhoria ou relatar erros, entre em contato com o desenvolvedor pelo email indicado no rodapé.
+    </p>
+    <p>
+      Em resumo, esta é uma alternativa gratuita, privada e eficiente para editar seus documentos PDF, com foco em usabilidade, acessibilidade e segurança. Marque nos favoritos e compartilhe com colegas que podem se beneficiar dessa praticidade.
+    </p>
+  </div>
+
+  <script src="https://unpkg.com/pdf-lib/dist/pdf-lib.min.js"></script>
+  <script>
+    const pdfInput = document.getElementById('pdfInput');
+    const pageRanges = document.getElementById('pageRanges');
+    const extractBtn = document.getElementById('extractBtn');
+    const statusDiv = document.getElementById('status');
+
+    function parsePageRanges(rangeString, totalPages) {
+      const pages = new Set();
+      const parts = rangeString.split(',').map(p => p.trim());
+
+      for (let part of parts) {
+        if (part.includes('-')) {
+          const [start, end] = part.split('-').map(Number);
+          if (!isNaN(start) && !isNaN(end)) {
+            for (let i = start; i <= end; i++) {
+              if (i >= 1 && i <= totalPages) pages.add(i - 1);
+            }
+          }
+        } else {
+          const page = parseInt(part);
+          if (!isNaN(page) && page >= 1 && page <= totalPages) {
+            pages.add(page - 1);
+          }
+        }
+      }
+
+      return Array.from(pages).sort((a, b) => a - b);
+    }
+
+    extractBtn.onclick = async () => {
+      const file = pdfInput.files[0];
+      if (!file || !file.name.toLowerCase().endsWith('.pdf')) {
+        alert("Por favor, selecione um arquivo PDF válido.");
+        return;
+      }
+
+      const rangeInput = pageRanges.value.trim();
+      if (!rangeInput) {
+        alert("Digite as páginas que deseja extrair.");
+        return;
+      }
+
+      try {
+        statusDiv.textContent = "Processando...";
+        const arrayBuffer = await file.arrayBuffer();
+        const pdf = await PDFLib.PDFDocument.load(arrayBuffer);
+        const totalPages = pdf.getPageCount();
+
+        const pagesToExtract = parsePageRanges(rangeInput, totalPages);
+        if (pagesToExtract.length === 0) {
+          alert("Nenhuma página válida selecionada.");
+          return;
+        }
+
+        const newPdf = await PDFLib.PDFDocument.create();
+        const copiedPages = await newPdf.copyPages(pdf, pagesToExtract);
+        copiedPages.forEach(page => newPdf.addPage(page));
+
+        const newPdfBytes = await newPdf.save();
+        const blob = new Blob([newPdfBytes], { type: 'application/pdf' });
+
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = 'PDF_Extraido.pdf';
+        link.click();
+
+        statusDiv.textContent = "Extração concluída!";
+      } catch (err) {
+        console.error(err);
+        statusDiv.textContent = "Erro ao processar o PDF.";
+      }
+    };
+  </script>
+</body>
+</html>
