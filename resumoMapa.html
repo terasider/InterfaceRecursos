@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Editor de Resumos + Mapa Mental</title>
+<style>
+  body {
+    margin: 0;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: #f0f2f5;
+    color: #222;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+  }
+
+  header {
+    background: #007acc;
+    color: white;
+    padding: 15px;
+    text-align: center;
+  }
+
+  main {
+    flex: 1;
+    display: flex;
+    gap: 15px;
+    padding: 15px;
+    overflow: hidden;
+  }
+
+  /* Coluna de resumos */
+  #resumos-container {
+    flex: 1.5;
+    background: white;
+    border-radius: 6px;
+    padding: 10px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+  }
+
+  #resumos-container h2 {
+    margin-bottom: 10px;
+    color: #007acc;
+  }
+
+  .resumo-secao {
+    margin-bottom: 15px;
+    border-bottom: 1px solid #ddd;
+    padding-bottom: 10px;
+    position: relative;
+  }
+
+  .resumo-secao textarea {
+    width: 100%;
+    min-height: 100px;
+    resize: vertical;
+    font-size: 1rem;
+    padding: 8px;
+    border-radius: 4px;
+    border: 1px solid #bbb;
+    font-family: inherit;
+  }
+
+  .resumo-secao label {
+    font-weight: bold;
+    display: block;
+    margin-bottom: 6px;
+  }
+
+  .btn-remover-secao {
+    position: absolute;
+    right: 5px;
+    top: 5px;
+    background: #e55353;
+    border: none;
+    color: white;
+    font-weight: bold;
+    border-radius: 4px;
+    cursor: pointer;
+    padding: 2px 6px;
+    font-size: 0.9rem;
+  }
+
+  #btn-add-secao {
+    margin-top: auto;
+    padding: 10px;
+    background: #007acc;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 1rem;
+  }
+
+  /* Coluna do mapa mental */
+  #mapa-container {
+    flex: 1.5;
+    background: white;
+    border-radius: 6px;
+    display: flex;
+    flex-direction: column;
+    padding: 10px;
+  }
+
+  #mapa-container h2 {
+    margin-bottom: 10px;
+    color: #007acc;
+    text-align: center;
+  }
+
+  #cy {
+    flex: 1;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    user-select: none;
+  }
+
+  /* Controle do mapa */
+  #mapa-controles {
+    margin-top: 10px;
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+  }
+
+  #mapa-controles button {
+    background: #007acc;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    padding: 8px 12px;
+    font-size: 1rem;
+    transition: background-color 0.2s;
+  }
+
+  #mapa-controles button:hover {
+    background: #005f99;
+  }
+
+  /* Scroll vertical para o body inteiro */
+  body, html {
+    overflow: hidden;
+  }
+
+  main::-webkit-scrollbar, #resumos-container::-webkit-scrollbar, #cy::-webkit-scrollbar {
+    width: 8px;
+  }
+  main::-webkit-scrollbar-thumb, #resumos-container::-webkit-scrollbar-thumb, #cy::-webkit-scrollbar-thumb {
+    background: #bbb;
+    border-radius: 4px;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Editor de Resumos & Mapa Mental</h1>
+</header>
+
+<main>
+  <section id="resumos-container">
+    <h2>Seções de Resumo</h2>
+    <!-- Seções dinâmicas vão aqui -->
+    <button id="btn-add-secao" title="Adicionar nova seção de resumo">+ Nova Seção</button>
+  </section>
+
+  <section id="mapa-container">
+    <h2>Mapa Mental</h2>
+    <div id="cy"></div>
+    <div id="mapa-controles">
+      <button id="btn-add-node" title="Adicionar nó">Adicionar Nó</button>
+      <button id="btn-connect-nodes" title="Conectar nós">Conectar Nós</button>
+      <button id="btn-remove-element" title="Remover nó ou aresta selecionada" disabled>Remover Seleção</button>
+      <button id="btn-zoom-in" title="Aumentar zoom">+</button>
+      <button id="btn-zoom-out" title="Diminuir zoom">-</button>
+      <button id="btn-save" title="Salvar mapa e resumos">Salvar JSON</button>
+      <input type="file" id="file-load" accept=".json" style="display:none;" />
+      <button id="btn-load" title="Carregar JSON">Carregar JSON</button>
+    </div>
+  </section>
+</main>
+
+<script src="https://unpkg.com/cytoscape@3.24.1/dist/cytoscape.min.js"></script>
+<script>
+// Inicializa o Cytoscape
+const cy = cytoscape({
+  container: document.getElementById('cy'),
+  elements: [],
+  style: [
+    {
+      selector: 'node',
+      style: {
+        label: 'data(label)',
+        'background-color': '#007acc',
+        color: '#fff',
+        'text-valign': 'center',
+        'text-halign': 'center',
+        width: 120,
+        height: 60,
+        'font-size': 14,
+        'border-radius': 10,
+        'text-wrap': 'wrap',
+        'text-max-width': 100,
+        'overlay-padding': '6px',
+        'z-index': 10,
+        cursor: 'pointer',
+      }
+    },
+    {
+      selector: 'edge',
+      style: {
+        width: 3,
+        'line-color': '#007acc',
+        'target-arrow-color': '#007acc',
+        'target-arrow-shape': 'triangle',
+        'curve-style': 'bezier',
+        'arrow-scale': 1.5,
+      }
+    },
+    {
+      selector: 'node:selected',
+      style: {
+        'border-width': 3,
+        'border-color': '#ffa500',
+        'background-color': '#005f99',
+      }
+    },
+    {
+      selector: 'edge:selected',
+      style: {
+        'line-color': '#ffa500',
+        'target-arrow-color': '#ffa500',
+        'width': 5,
+      }
+    }
+  ],
+  layout: { name: 'preset' }
+});
+
+// DOM elements
+const resumosContainer = document.getElementById('resumos-container');
+const btnAddSecao = document.getElementById('btn-add-secao');
+const btnAddNode = document.getElementById('btn-add-node');
+const btnConnectNodes = document.getElementById('btn-connect-nodes');
+const btnRemoveElement = document.getElementById('btn-remove-element');
+const btnZoomIn = document.getElementById('btn-zoom-in');
+const btnZoomOut = document.getElementById('btn-zoom-out');
+const btnSave = document.getElementById('btn-save');
+const btnLoad = document.getElementById('btn-load');
+const fileLoad = document.getElementById('file-load');
+
+// State counters
+let nodeIdCounter = 0;
+let secaoIdCounter = 0;
+
+// Function to create summary section
+function criarSecao(text = '', label = '') {
+  secaoIdCounter++;
+  const secaoId = 'secao-' + secaoIdCounter;
+
+  const div = document.createElement('div');
+  div.className = 'resumo-secao';
+  div.dataset.id = secaoId;
+
+  const labelEl = document.createElement('label');
+  labelEl.textContent = label || `Seção ${secaoIdCounter}`;
+  labelEl.setAttribute('for', secaoId);
+
+  const textarea = document.createElement('textarea');
+  textarea.id = secaoId;
+  textarea.value = text;
+
+  const btnRemover = document.createElement('button');
+  btnRemover.textContent = 'x';
+  btnRemover.className = 'btn-remover-secao';
+  btnRemover.title = 'Remover esta seção';
+  btnRemover.onclick = () => {
+    if (confirm('Quer remover esta seção?')) {
+      const node = cy.getElementById(secaoId);
+      if (node) node.remove();
+      div.remove();
+    }
+  };
+
+  div.appendChild(labelEl);
+  div.appendChild(btnRemover);
+  div.appendChild(textarea);
+
+  resumosContainer.insertBefore(div, btnAddSecao);
+}
+
+// Function to create node on the mental map
+function criarNode(label = '', position = { x: 100 + nodeIdCounter * 30, y: 100 + nodeIdCounter * 30 }, id = '') {
+  if (!id) {
+    nodeIdCounter++;
+    id = 'node-' + nodeIdCounter;
+  }
+  cy.add({
+    group: 'nodes',
+    data: { id, label },
+    position
+  });
+  cy.layout({ name: 'preset' }).run();
+}
+
+// Function to sync node and section creation
+function adicionarSecaoENode(label = '') {
+  criarSecao('', label);
+  criarNode(label);
+}
+
+// Connect mode state
+let conectando = false;
+let primeiroNoConectar = null;
+
+// Btn Connect click toggles connect mode
+btnConnectNodes.onclick = () => {
+  if (!conectando) {
+    conectando = true;
+    primeiroNoConectar = null;
+    btnConnectNodes.textContent = 'Modo conectar: clique em 2 nós';
+    btnConnectNodes.style.backgroundColor = '#ffa500';
+  } else {
+    conectando = false;
+    primeiroNoConectar = null;
+    btnConnectNodes.textContent = 'Conectar Nós';
+    btnConnectNodes.style.backgroundColor = '#007acc';
+  }
+};
+
+// Click node to connect if connect mode on
+cy.on('tap', 'node', (evt) => {
+  if (!conectando) return;
+
+  const node = evt.target;
+
+  if (!primeiroNoConectar) {
+    primeiroNoConectar = node;
+    node.select();
+  } else if (node.id() !== primeiroNoConectar.id()) {
+    // Add edge between primeiroNoConectar and node
+    const edgeId = 'e' + Date.now();
+    cy.add({
+      group: 'edges',
+      data: { id: edgeId, source: primeiroNoConectar.id(), target: node.id() }
+    });
+    primeiroNoConectar.unselect();
+    node.select();
+
+    // Reset connect mode
+    conectando = false;
+    primeiroNoConectar.unselect();
+    node.unselect();
+    primeiroNoConectar = null;
+
+    btnConnectNodes.textContent = 'Conectar Nós';
+    btnConnectNodes.style.backgroundColor = '#007acc';
+  }
+});
+
+// Enable remove button if selection exists
+cy.on('select unselect', () => {
+  btnRemoveElement.disabled = cy.$(':selected').length === 0;
+});
+
+// Remove selected nodes or edges
+btnRemoveElement.onclick = () => {
+  const selected = cy.$(':selected');
+  if (selected.length === 0) return;
+  if (confirm('Quer remover o(s) elemento(s) selecionado(s)?')) {
+    selected.forEach(el => {
+      if (el.isNode()) {
+        const secao = [...resumosContainer.querySelectorAll('.resumo-secao')]
+          .find(sec => sec.dataset.id === el.id());
+        if (secao) secao.remove();
+      }
+      el.remove();
+    });
+  }
+};
+
+// Add node button: prompt label, add section+node
+btnAddNode.onclick = () => {
+  const label = prompt('Digite o título do novo nó/seção:');
+  if (!label) return alert('Título é obrigatório');
+  adicionarSecaoENode(label);
+};
+
+// Add section button: prompt label, add section only
+btnAddSecao.onclick = () => {
+  const label = prompt('Digite o título da nova seção:');
+  if (!label) return alert('Título é obrigatório');
+  criarSecao('', label);
+};
+
+// Scroll and highlight section when node clicked
+cy.on('tap', 'node', (evt) => {
+  const id = evt.target.id();
+  const secao = [...resumosContainer.querySelectorAll('.resumo-secao')]
+    .find(sec => sec.dataset.id === id);
+  if (secao) {
+    secao.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    secao.style.backgroundColor = '#ffffcc';
+    setTimeout(() => secao.style.backgroundColor = '', 1500);
+  }
+});
+
+// Zoom controls
+btnZoomIn.onclick = () => {
+  cy.zoom({
+    level: cy.zoom() * 1.2,
+    renderedPosition: { x: cy.width() / 2, y: cy.height() / 2 }
+  });
+};
+btnZoomOut.onclick = () => {
+  cy.zoom({
+    level: cy.zoom() / 1.2,
+    renderedPosition: { x: cy.width() / 2, y: cy.height() / 2 }
+  });
+};
+
+// Save JSON (map + summaries)
+btnSave.onclick = () => {
+  const elementsJSON = cy.json().elements;
+  const resumos = [...resumosContainer.querySelectorAll('.resumo-secao')].map(secao => {
+    const textarea = secao.querySelector('textarea');
+    const label = secao.querySelector('label').textContent;
+    return { id: secao.dataset.id, label, text: textarea.value };
+  });
+  const data = { elements: elementsJSON, resumos };
+  const jsonStr = JSON.stringify(data, null, 2);
+  const blob = new Blob([jsonStr], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'mapa_resumos.json';
+  a.click();
+  URL.revokeObjectURL(url);
+};
+
+// Load JSON
+btnLoad.onclick = () => fileLoad.click();
+
+fileLoad.onchange = (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (event) => {
+    try {
+      const data = JSON.parse(event.target.result);
+      if (!data.elements || !data.resumos) throw new Error('JSON inválido');
+      cy.elements().remove();
+      resumosContainer.querySelectorAll('.resumo-secao').forEach(sec => sec.remove());
+
+      cy.add(data.elements);
+      cy.layout({ name: 'preset' }).run();
+
+      // Update counters to avoid ID conflicts
+      nodeIdCounter = 0;
+      data.elements.nodes?.forEach(node => {
+        const nIdNum = parseInt(node.data.id.replace('node-', '')) || 0;
+        if (nIdNum > nodeIdCounter) nodeIdCounter = nIdNum;
+      });
+      secaoIdCounter = 0;
+      data.resumos.forEach(sec => {
+        criarSecao(sec.text, sec.label);
+        const nIdNum = parseInt(sec.id.replace('secao-', '')) || 0;
+        if (nIdNum > secaoIdCounter) secaoIdCounter = nIdNum;
+      });
+
+      alert('Arquivo carregado com sucesso!');
+    } catch (error) {
+      alert('Erro ao carregar arquivo: ' + error.message);
+    }
+  };
+  reader.readAsText(file);
+  fileLoad.value = '';
+};
+
+// Demo content
+function inicializarDemo() {
+  criarSecao('O modelo cascata é linear, fácil de entender, mas pouco flexível para mudanças.', 'Modelo Cascata');
+  criarSecao('O modelo iterativo permite ciclos curtos e revisitas a fases anteriores.', 'Modelo Iterativo');
+  criarNode('Modelo Cascata', { x: 100, y: 100 }, 'secao-1');
+  criarNode('Modelo Iterativo', { x: 300, y: 150 }, 'secao-2');
+  cy.add({ group: 'nodes', data: { id: 'eng-software', label: 'Engenharia de Software' }, position: { x: 200, y: 50 } });
+  cy.add({ group: 'edges', data: { id: 'e1', source: 'eng-software', target: 'secao-1' } });
+  cy.add({ group: 'edges', data: { id: 'e2', source: 'eng-software', target: 'secao-2' } });
+  cy.layout({ name: 'preset' }).run();
+}
+
+inicializarDemo();
+
+
+</script>
+</body>
+</html>
