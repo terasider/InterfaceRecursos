@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Verificador de Arquivos Duplicados</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; }
+    button { padding: 10px 20px; }
+    input { padding: 5px; width: 60px; }
+    label { margin-right: 10px; }
+    #status { margin-top: 20px; }
+    progress { width: 100%; height: 20px; margin-top: 10px; }
+    pre { background: #f0f0f0; padding: 10px; max-height: 400px; overflow: auto; white-space: pre-wrap; }
+  </style>
+</head>
+<body>
+  <h1>Verificador de Arquivos Duplicados</h1>
+
+  <label for="minSize">Tamanho mínimo (MB):</label>
+  <input type="number" id="minSize" value="1" min="0.1" step="0.1" />
+  <button id="selecionar">Selecionar Pasta</button>
+
+  <div id="status"></div>
+  <progress id="progresso" value="0" max="100" style="display:none;"></progress>
+
+  <pre id="saida">Clique no botão acima para começar.</pre>
+
+  <script>
+    const btn = document.getElementById('selecionar');
+    const saida = document.getElementById('saida');
+    const status = document.getElementById('status');
+    const barra = document.getElementById('progresso');
+    const minSizeInput = document.getElementById('minSize');
+
+    btn.onclick = async () => {
+      saida.textContent = '';
+      status.textContent = 'Aguardando seleção de pasta...';
+      barra.style.display = 'none';
+      barra.value = 0;
+
+      try {
+        const minMB = parseFloat(minSizeInput.value);
+        const minBytes = minMB * 1024 * 1024;
+
+        const dirHandle = await window.showDirectoryPicker();
+        const arquivos = [];
+        await lerDiretorio(dirHandle, '', arquivos);
+
+        // Filtrar por tamanho
+        const arquivosFiltrados = [];
+        for (const file of arquivos) {
+          const f = await file.handle.getFile();
+          if (f.size >= minBytes) {
+            file.size = f.size;
+            file.sizeMB = (f.size / (1024 * 1024)).toFixed(2);
+            file._file = f; // salvar referência temporária
+            arquivosFiltrados.push(file);
+          }
+        }
+
+        const total = arquivosFiltrados.length;
+        status.textContent = `Calculando hashes dos arquivos (${total} arquivos após o filtro)...`;
+        barra.max = total;
+        barra.value = 0;
+        barra.style.display = 'block';
+
+        for (let i = 0; i < total; i++) {
+          const file = arquivosFiltrados[i];
+          const buffer = await file._file.arrayBuffer();
+          const hash = await crypto.subtle.digest('SHA-1', buffer);
+          file.hash = [...new Uint8Array(hash)].map(b => b.toString(16).padStart(2, '0')).join('');
+          barra.value = i + 1;
+          status.textContent = `Analisando ${i + 1} de ${total} arquivos...`;
+        }
+
+        status.textContent = 'Análise concluída. Gerando relatório...';
+
+        const duplicatas = {};
+        for (const file of arquivosFiltrados) {
+          if (!duplicatas[file.hash]) duplicatas[file.hash] = [];
+          duplicatas[file.hash].push(file);
+        }
+
+        const duplicados = Object.entries(duplicatas).filter(([_, lista]) => lista.length > 1);
+
+        let totalDuplicados = 0;
+        let desperdicioBytes = 0;
+        let relatorio = '';
+
+        if (duplicados.length === 0) {
+          relatorio = 'Nenhum arquivo duplicado encontrado.';
+        } else {
+          relatorio = `🔁 Arquivos Duplicados Encontrados:\n`;
+          for (const [hash, lista] of duplicados) {
+            const desperdicio = (lista.length - 1) * lista[0].size;
+            desperdicioBytes += desperdicio;
+            totalDuplicados += lista.length - 1;
+
+            relatorio += `\n🧬 Hash: ${hash} - ${((desperdicio) / (1024 * 1024)).toFixed(2)} MB desperdiçados\n`;
+            for (const f of lista) {
+              relatorio += `📄 ${f.path} (${f.sizeMB} MB)\n`;
+            }
+          }
+        }
+
+        // Resumo
+        const resumo = `\n📊 Resumo:
+- Arquivos analisados (≥ ${minMB} MB): ${total}
+- Arquivos duplicados: ${totalDuplicados}
+- Espaço desperdiçado: ${(desperdicioBytes / (1024 * 1024)).toFixed(2)} MB`;
+
+        saida.textContent = relatorio + resumo;
+        status.textContent = '✅ Análise finalizada.';
+        barra.style.display = 'none';
+
+      } catch (e) {
+        saida.textContent = 'Erro: ' + e.message;
+        status.textContent = 'Erro na execução.';
+        barra.style.display = 'none';
+        console.error(e);
+      }
+    };
+
+    async function lerDiretorio(handle, caminhoRelativo, lista) {
+      for await (const entry of handle.values()) {
+        const novoCaminho = caminhoRelativo + '/' + entry.name;
+        if (entry.kind === 'file') {
+          lista.push({ path: novoCaminho, handle: entry });
+        } else if (entry.kind === 'directory') {
+          await lerDiretorio(entry, novoCaminho, lista);
+        }
+      }
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>📔 Diário Expandido</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f0f0f0;
+      margin: 0;
+      padding: 10px;
+    }
+    .container {
+      max-width: 900px;
+      margin: auto;
+      background: white;
+      padding: 20px;
+      border-radius: 10px;
+    }
+    textarea, input, button {
+      width: 100%;
+      padding: 12px;
+      margin: 8px 0;
+      box-sizing: border-box;
+      font-size: 16px;
+    }
+    label {
+      font-weight: bold;
+      display: block;
+      margin-top: 10px;
+    }
+    .calendar {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 5px;
+      margin: 10px 0;
+    }
+    .calendar-day {
+      background: #eee;
+      padding: 10px;
+      text-align: center;
+      cursor: pointer;
+      border-radius: 4px;
+      user-select: none;
+    }
+    .calendar-day.active {
+      background: #2196F3;
+      color: white;
+      font-weight: bold;
+    }
+    .search-box {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+    }
+    .entry {
+      border-top: 1px solid #ccc;
+      padding-top: 10px;
+      margin-top: 20px;
+    }
+
+    @media (max-width: 600px) {
+      .calendar {
+        grid-template-columns: repeat(4, 1fr);
+      }
+      .calendar-day {
+        font-size: 12px;
+        padding: 8px;
+      }
+      .search-box {
+        flex-direction: column;
+        align-items: stretch;
+      }
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+  <h1 style="text-align:center;">📔 Diário Expandido</h1>
+
+  <label for="monthSelect">Selecione o mês:</label>
+  <input type="month" id="monthSelect" onchange="renderCalendar()">
+
+  <div class="calendar" id="calendar"></div>
+
+  <label for="text">Texto do Diário</label>
+  <textarea id="text" rows="4" placeholder="Conte seu dia..."></textarea>
+
+  <label for="weight">Peso (kg)</label>
+  <input type="number" id="weight" step="0.1">
+
+  <label for="mood">Estado de Espírito</label>
+  <input type="text" id="mood">
+
+  <label for="physical">Sensação Física</label>
+  <input type="text" id="physical">
+
+  <label for="mental">Estado Psicológico</label>
+  <input type="text" id="mental">
+
+  <label for="climate">Clima</label>
+  <input type="text" id="climate" placeholder="Ex: nublado, quente, chuvoso...">
+
+  <label for="news">Notícias do Dia</label>
+  <textarea id="news" rows="2" placeholder="Resumo pessoal ou notícias marcantes..."></textarea>
+
+  <label for="hour">Hora do Registro</label>
+  <input type="time" id="hour">
+
+  <button onclick="saveEntry()">💾 Salvar Entrada</button>
+  <button onclick="deleteEntry()">🗑️ Excluir Dia</button>
+  <button onclick="deleteAll()">🔥 Excluir Tudo</button>
+
+  <div class="search-box">
+    <input type="text" id="search" placeholder="🔍 Buscar no diário..." oninput="filterEntries()">
+  </div>
+
+  <div id="searchResults" class="entry"></div>
+</div>
+
+<script>
+  let diaryData = JSON.parse(localStorage.getItem('diaryData') || '[]');
+  let selectedDate = null;
+
+  const today = new Date();
+  const todayStr = today.toISOString().slice(0, 10);
+  document.getElementById('monthSelect').value = todayStr.slice(0, 7);
+
+  renderCalendar(() => {
+    const dayDivs = document.querySelectorAll('.calendar-day');
+    for (const div of dayDivs) {
+      if (div.textContent === String(today.getDate())) {
+        div.click();
+        break;
+      }
+    }
+  });
+
+  function saveData() {
+    localStorage.setItem('diaryData', JSON.stringify(diaryData));
+  }
+
+  function renderCalendar(callback) {
+    const calendar = document.getElementById('calendar');
+    calendar.innerHTML = '';
+    const [year, month] = document.getElementById('monthSelect').value.split('-').map(Number);
+    const daysInMonth = new Date(year, month, 0).getDate();
+
+    for (let day = 1; day <= daysInMonth; day++) {
+      const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+      const div = document.createElement('div');
+      div.className = 'calendar-day';
+      div.textContent = day;
+      div.onclick = () => selectDate(dateStr, div);
+      calendar.appendChild(div);
+    }
+
+    if (callback) callback();
+  }
+
+  function selectDate(dateStr, element) {
+    selectedDate = dateStr;
+    [...document.getElementsByClassName('calendar-day')].forEach(e => e.classList.remove('active'));
+    element.classList.add('active');
+    loadEntry(dateStr);
+  }
+
+  function loadEntry(date) {
+    const entry = diaryData.find(e => e.date === date);
+    document.getElementById('text').value = entry?.text || '';
+    document.getElementById('weight').value = entry?.weight || '';
+    document.getElementById('mood').value = entry?.mood || '';
+    document.getElementById('physical').value = entry?.physical || '';
+    document.getElementById('mental').value = entry?.mental || '';
+    document.getElementById('climate').value = entry?.climate || '';
+    document.getElementById('news').value = entry?.news || '';
+    document.getElementById('hour').value = entry?.hour || '';
+  }
+
+  function saveEntry() {
+    if (!selectedDate) {
+      alert('Selecione um dia no calendário.');
+      return;
+    }
+
+    const existing = diaryData.find(e => e.date === selectedDate);
+    const hourInput = document.getElementById('hour').value || new Date().toTimeString().slice(0,5);
+
+    const entry = {
+      date: selectedDate,
+      text: document.getElementById('text').value,
+      weight: parseFloat(document.getElementById('weight').value) || '',
+      mood: document.getElementById('mood').value,
+      physical: document.getElementById('physical').value,
+      mental: document.getElementById('mental').value,
+      climate: document.getElementById('climate').value,
+      news: document.getElementById('news').value,
+      hour: hourInput
+    };
+
+    if (existing) {
+      Object.assign(existing, entry);
+    } else {
+      diaryData.push(entry);
+    }
+
+    saveData();
+    alert('Entrada salva.');
+  }
+
+  function deleteEntry() {
+    if (!selectedDate) {
+      alert('Selecione um dia.');
+      return;
+    }
+    diaryData = diaryData.filter(e => e.date !== selectedDate);
+    saveData();
+    alert('Entrada excluída.');
+    clearForm();
+  }
+
+  function deleteAll() {
+    if (confirm('Tem certeza que deseja apagar TODO o diário?')) {
+      diaryData = [];
+      localStorage.removeItem('diaryData');
+      clearForm();
+      alert('Todos os dados foram apagados.');
+    }
+  }
+
+  function clearForm() {
+    document.getElementById('text').value = '';
+    document.getElementById('weight').value = '';
+    document.getElementById('mood').value = '';
+    document.getElementById('physical').value = '';
+    document.getElementById('mental').value = '';
+    document.getElementById('climate').value = '';
+    document.getElementById('news').value = '';
+    document.getElementById('hour').value = '';
+  }
+
+  function filterEntries() {
+    const term = document.getElementById('search').value.toLowerCase();
+    const results = diaryData.filter(entry =>
+      (entry.text || '').toLowerCase().includes(term) ||
+      (entry.mood || '').toLowerCase().includes(term) ||
+      (entry.physical || '').toLowerCase().includes(term) ||
+      (entry.mental || '').toLowerCase().includes(term) ||
+      (entry.climate || '').toLowerCase().includes(term) ||
+      (entry.news || '').toLowerCase().includes(term)
+    );
+
+    const container = document.getElementById('searchResults');
+    container.innerHTML = '';
+
+    if (term && results.length) {
+      container.innerHTML = `<h3>Resultados da busca:</h3>`;
+      results.forEach(entry => {
+        const div = document.createElement('div');
+        div.className = 'entry';
+        div.innerHTML = `
+          <strong>${entry.date} ${entry.hour || ''}</strong><br>
+          <p>${entry.text}</p>
+          <small>
+            Peso: ${entry.weight ?? '-'} |
+            Humor: ${entry.mood} |
+            Física: ${entry.physical} |
+            Psicológico: ${entry.mental}<br>
+            Clima: ${entry.climate} |
+            Notícias: ${entry.news}
+          </small>
+        `;
+        container.appendChild(div);
+      });
+    }
+  }
+</script>
+</body>
+</html>

@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Criptografia de Arquivos</title>
+  <style>
+    :root {
+      --primary: #0077cc;
+      --success: #28a745;
+      --danger: #dc3545;
+      --background: #f4f4f9;
+      --card-bg: #fff;
+      --border: #ddd;
+      --text: #333;
+    }
+
+    body {
+      margin: 0;
+      padding: 20px;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: var(--background);
+      color: var(--text);
+    }
+
+    h1, h2 {
+      color: var(--primary);
+    }
+
+    .container {
+      max-width: 800px;
+      margin: auto;
+    }
+
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 20px;
+      margin-bottom: 30px;
+      box-shadow: 0 3px 8px rgba(0,0,0,0.05);
+    }
+
+    label {
+      font-weight: 600;
+      margin-top: 10px;
+      display: block;
+    }
+
+    input[type="file"] {
+      margin: 10px 0;
+    }
+
+    button {
+      background: var(--primary);
+      color: white;
+      border: none;
+      padding: 12px 20px;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 16px;
+      margin-top: 10px;
+    }
+
+    button:hover {
+      background: #005fa3;
+    }
+
+    .success {
+      background-color: var(--success);
+    }
+
+    .danger {
+      background-color: var(--danger);
+    }
+
+    a.download-link {
+      display: inline-block;
+      margin-top: 10px;
+      color: var(--success);
+      font-weight: bold;
+      text-decoration: none;
+    }
+
+    @media (max-width: 600px) {
+      button {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+
+    <h1>🔐 Utilitário de Criptografia de Arquivos</h1>
+
+    <div class="card">
+      <h2>1️⃣ Gerar Par de Chaves RSA</h2>
+      <button onclick="gerarChaves()">Gerar Chaves (Pública + Privada)</button>
+      <div id="chavesStatus"></div>
+    </div>
+
+    <div class="card">
+      <h2>2️⃣ Criptografar Arquivos</h2>
+      <label>Selecione os arquivos que deseja criptografar:</label>
+      <input type="file" id="fileInput" multiple />
+      <button onclick="criptografarArquivos()" class="success">Criptografar e Baixar ZIP</button>
+    </div>
+
+    <div class="card">
+      <h2>3️⃣ Descriptografar Arquivos</h2>
+      <label>Selecione o arquivo ZIP com os arquivos criptografados:</label>
+      <input type="file" id="zipInput" />
+
+      <label>Selecione o arquivo JSON com as chaves (pública + privada):</label>
+      <input type="file" id="keyJsonInput" />
+
+      <button onclick="descriptografarZip()" class="danger">Descriptografar e Baixar ZIP</button>
+    </div>
+
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script>
+    let publicKey, privateKey;
+
+    async function gerarChaves() {
+      const keyPair = await crypto.subtle.generateKey(
+        {
+          name: "RSA-OAEP",
+          modulusLength: 4096,
+          publicExponent: new Uint8Array([1, 0, 1]),
+          hash: "SHA-256"
+        },
+        true,
+        ["encrypt", "decrypt"]
+      );
+
+      publicKey = keyPair.publicKey;
+      privateKey = keyPair.privateKey;
+
+      const pub = await crypto.subtle.exportKey("jwk", publicKey);
+      const priv = await crypto.subtle.exportKey("jwk", privateKey);
+
+      const blob = new Blob([JSON.stringify({ publicKey: pub, privateKey: priv }, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "chaves_rsa.json";
+      a.textContent = "📥 Baixar chaves_rsa.json";
+      a.className = "download-link";
+
+      const status = document.getElementById("chavesStatus");
+      status.innerHTML = "✅ Chaves geradas com sucesso!";
+      status.appendChild(document.createElement("br"));
+      status.appendChild(a);
+    }
+
+    async function criptografarArquivos() {
+      if (!publicKey) return alert("Você precisa gerar as chaves primeiro!");
+
+      const files = document.getElementById('fileInput').files;
+      if (!files.length) return alert("Selecione pelo menos um arquivo.");
+
+      const zip = new JSZip();
+
+      for (let file of files) {
+        const data = new Uint8Array(await file.arrayBuffer());
+
+        const aesKey = await crypto.subtle.generateKey({ name: "AES-GCM", length: 256 }, true, ["encrypt", "decrypt"]);
+        const iv = crypto.getRandomValues(new Uint8Array(12));
+
+        const encryptedData = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, aesKey, data);
+        const rawAesKey = await crypto.subtle.exportKey("raw", aesKey);
+        const encryptedAesKey = await crypto.subtle.encrypt({ name: "RSA-OAEP" }, publicKey, rawAesKey);
+
+        const base = file.name;
+        zip.file(`encrypted/${base}.enc`, new Uint8Array(encryptedData));
+        zip.file(`encrypted/${base}.iv`, iv);
+        zip.file(`encrypted/${base}.key`, new Uint8Array(encryptedAesKey));
+      }
+
+      const finalBlob = await zip.generateAsync({ type: "blob" });
+      baixarBlob(finalBlob, "arquivos_criptografados.zip");
+    }
+
+    async function descriptografarZip() {
+      const zipFile = document.getElementById("zipInput").files[0];
+      const keyFile = document.getElementById("keyJsonInput").files[0];
+      if (!zipFile || !keyFile) return alert("Selecione o ZIP e o JSON com as chaves.");
+
+      const zipData = await zipFile.arrayBuffer();
+      const zip = await JSZip.loadAsync(zipData);
+
+      const keyJSON = JSON.parse(await keyFile.text());
+      const importedPrivateKey = await crypto.subtle.importKey("jwk", keyJSON.privateKey, { name: "RSA-OAEP", hash: "SHA-256" }, false, ["decrypt"]);
+
+      const outputZip = new JSZip();
+
+      for (let filename of Object.keys(zip.files)) {
+        if (!filename.endsWith(".enc")) continue;
+
+        const base = filename.split("/").pop().replace(".enc", "");
+        const encryptedData = await zip.files[`encrypted/${base}.enc`].async("uint8array");
+        const encryptedKey = await zip.files[`encrypted/${base}.key`].async("uint8array");
+        const iv = await zip.files[`encrypted/${base}.iv`].async("uint8array");
+
+        try {
+          const rawKey = await crypto.subtle.decrypt({ name: "RSA-OAEP" }, importedPrivateKey, encryptedKey);
+          const aesKey = await crypto.subtle.importKey("raw", rawKey, "AES-GCM", false, ["decrypt"]);
+
+          const decrypted = await crypto.subtle.decrypt({ name: "AES-GCM", iv }, aesKey, encryptedData);
+          outputZip.file(`decrypted/${base}`, new Uint8Array(decrypted));
+        } catch (e) {
+          alert(`Erro ao descriptografar o arquivo: ${base}`);
+        }
+      }
+
+      const finalBlob = await outputZip.generateAsync({ type: "blob" });
+      baixarBlob(finalBlob, "arquivos_descriptografados.zip");
+    }
+
+    function baixarBlob(blob, filename) {
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = filename;
+      link.click();
+    }
+  </script>
+</body>
+</html>
