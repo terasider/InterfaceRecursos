@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <title>Comparador de Respostas de I.A.</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    body {
+      font-family: sans-serif;
+      margin: 20px;
+      background: #f9f9f9;
+    }
+    h1 {
+      text-align: center;
+    }
+    textarea, input[type="text"] {
+      width: 100%;
+      padding: 10px;
+      font-size: 1rem;
+      margin: 8px 0;
+      box-sizing: border-box;
+    }
+    button {
+      padding: 8px 14px;
+      font-size: 0.95rem;
+      margin: 6px 4px;
+      cursor: pointer;
+      border: none;
+      border-radius: 4px;
+    }
+    .session {
+      background: #fff;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      padding: 10px;
+      margin-bottom: 20px;
+    }
+    .subquestion {
+      border-top: 1px solid #eee;
+      padding-top: 10px;
+      margin-top: 10px;
+    }
+    .btn-group, .utility-buttons {
+      text-align: center;
+      margin-top: 12px;
+    }
+    .btn-primary {
+      background-color: #007bff;
+      color: #fff;
+    }
+    .btn-secondary {
+      background-color: #6c757d;
+      color: #fff;
+    }
+    .btn-success {
+      background-color: #28a745;
+      color: white;
+    }
+    .btn-danger {
+      background-color: #dc3545;
+      color: white;
+    }
+    .btn-small {
+      font-size: 0.8rem;
+      padding: 4px 8px;
+      margin: 2px;
+    }
+    pre {
+      background: #222;
+      color: #eee;
+      padding: 12px;
+      border-radius: 6px;
+      white-space: pre-wrap;
+    }
+    #tipContainer {
+      display: none;
+      background: #e6f2ff;
+      padding: 12px;
+      border: 1px solid #99c9ff;
+      border-radius: 6px;
+      margin-bottom: 20px;
+      white-space: pre-wrap;
+    }
+    .textarea-block {
+      position: relative;
+    }
+    .copy-paste-buttons {
+      text-align: right;
+    }
+  </style>
+</head>
+<body>
+
+<h1>Comparador de Respostas de I.A.</h1>
+
+<!-- Dica de uso -->
+<button class="btn-secondary" onclick="toggleTip()">Mostrar Dica de Uso</button>
+<div id="tipContainer">
+Instruções para o GPT:
+
+Eu vou te fornecer duas respostas (ou mais) de diferentes agentes de IA para a mesma pergunta. Essas respostas podem conter informações similares, mas com variações de detalhes, estilo e exemplos.
+
+Sua tarefa é:
+1. Ler todas as respostas com atenção.
+2. Fundir e condensar as informações, eliminando duplicações e redundâncias.
+3. Manter apenas o conteúdo relevante, importante e que agregue valor à resposta final.
+4. Se houver divergências, buscar um meio termo ou apontar as diferenças de forma breve.
+5. Entregar um texto único, coeso, claro e bem organizado.
+</div>
+
+<!-- Formulário principal -->
+<form onsubmit="return false;">
+  <label for="mainQuestion"><strong>Questão:</strong></label>
+  <div class="textarea-block">
+    <textarea id="mainQuestion" placeholder="Digite a pergunta principal" required></textarea>
+    <div class="copy-paste-buttons">
+      <button class="btn-small btn-secondary" type="button" onclick="copyText('mainQuestion')">Copiar</button>
+      <button class="btn-small btn-secondary" type="button" onclick="pasteText('mainQuestion')">Colar</button>
+    </div>
+  </div>
+
+  <div id="sessionContainer">
+    <!-- Sessões dinâmicas aparecerão aqui -->
+  </div>
+
+  <div class="utility-buttons">
+    <button class="btn-success" type="button" onclick="addSession()">+ Adicionar Sessão</button>
+  </div>
+
+  <div class="btn-group">
+    <button class="btn-primary" type="button" onclick="sumResponses()">Somar Respostas</button>
+    <button class="btn-secondary" type="button" onclick="exportJSON()">Exportar JSON</button>
+    <button class="btn-secondary" type="button" onclick="document.getElementById('fileInput').click()">Importar JSON</button>
+    <input type="file" id="fileInput" accept=".json" style="display:none" onchange="importJSON(event)">
+  </div>
+</form>
+
+<h2>Resumo das Respostas:</h2>
+<pre id="result">(As respostas somadas aparecerão aqui)</pre>
+<div class="copy-paste-buttons">
+  <button class="btn-small btn-secondary" type="button" onclick="copyText('result')">Copiar</button>
+</div>
+
+<h2>Resposta Final Sintetizada:</h2>
+<div class="textarea-block">
+  <textarea id="finalAnswer" placeholder="Cole aqui a resposta final consolidada, gerada pelo GPT."></textarea>
+  <div class="copy-paste-buttons">
+    <button class="btn-small btn-secondary" type="button" onclick="copyText('finalAnswer')">Copiar</button>
+    <button class="btn-small btn-secondary" type="button" onclick="pasteText('finalAnswer')">Colar</button>
+  </div>
+</div>
+
+<!-- Scripts -->
+<script>
+(() => {
+  let sessionCount = 0;
+  const sessionContainer = document.getElementById('sessionContainer');
+
+  function createSubQuestion(sessionId, subId) {
+    const subDiv = document.createElement('div');
+    subDiv.className = 'subquestion';
+    subDiv.id = `session${sessionId}_sub${subId}`;
+
+    subDiv.innerHTML = `
+      <label><strong>Subquestão ${subId}:</strong></label>
+      <div class="textarea-block">
+        <textarea placeholder="Digite a subquestão ${subId}"></textarea>
+        <div class="copy-paste-buttons">
+          <button class="btn-small btn-secondary" type="button" onclick="copyTextByElement(this.parentElement.previousElementSibling)">Copiar</button>
+          <button class="btn-small btn-secondary" type="button" onclick="pasteTextByElement(this.parentElement.previousElementSibling)">Colar</button>
+        </div>
+      </div>
+
+      <label><strong>Resposta para subquestão ${subId}:</strong></label>
+      <div class="textarea-block">
+        <textarea placeholder="Cole a resposta do agente de IA para subquestão ${subId}"></textarea>
+        <div class="copy-paste-buttons">
+          <button class="btn-small btn-secondary" type="button" onclick="copyTextByElement(this.parentElement.previousElementSibling)">Copiar</button>
+          <button class="btn-small btn-secondary" type="button" onclick="pasteTextByElement(this.parentElement.previousElementSibling)">Colar</button>
+        </div>
+      </div>
+    `;
+    return subDiv;
+  }
+
+  function createSession(sessionId) {
+    const sessionDiv = document.createElement('div');
+    sessionDiv.className = 'session';
+    sessionDiv.id = `session${sessionId}`;
+
+    sessionDiv.innerHTML = `
+      <h3>Sessão ${sessionId}</h3>
+      <div class="btn-group" style="margin-bottom:10px;">
+        <button class="btn-small btn-danger" type="button" onclick="removeSession(${sessionId})">Remover Sessão</button>
+        <button class="btn-small btn-success" type="button" onclick="addSubQuestion(${sessionId})">+ Subquestão</button>
+      </div>
+      <div class="textarea-block">
+        <label><strong>Pedido / Questão principal da sessão ${sessionId}:</strong></label>
+        <textarea placeholder="Digite o pedido ou questão principal da sessão ${sessionId}"></textarea>
+        <div class="copy-paste-buttons">
+          <button class="btn-small btn-secondary" type="button" onclick="copyTextByElement(this.parentElement.querySelector('textarea'))">Copiar</button>
+          <button class="btn-small btn-secondary" type="button" onclick="pasteTextByElement(this.parentElement.querySelector('textarea'))">Colar</button>
+        </div>
+      </div>
+      <div class="subquestions-container"></div>
+    `;
+
+    sessionContainer.appendChild(sessionDiv);
+
+    // Inicializar com 1 subquestão
+    addSubQuestion(sessionId);
+  }
+
+  window.addSession = () => {
+    sessionCount++;
+    createSession(sessionCount);
+  };
+
+  window.removeSession = (id) => {
+    const session = document.getElementById(`session${id}`);
+    if (session) {
+      session.remove();
+    }
+  };
+
+  window.addSubQuestion = (sessionId) => {
+    const session = document.getElementById(`session${sessionId}`);
+    if (!session) return;
+
+    const container = session.querySelector('.subquestions-container');
+    const subQuestions = container.querySelectorAll('.subquestion');
+    const newSubId = subQuestions.length + 1;
+
+    const newSub = createSubQuestion(sessionId, newSubId);
+    container.appendChild(newSub);
+  };
+
+  window.copyText = (id) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.select();
+    el.setSelectionRange(0, 99999); // Para mobile
+    navigator.clipboard.writeText(el.value).then(() => {
+      alert('Copiado!');
+    }).catch(() => {
+      alert('Falha ao copiar.');
+    });
+  };
+
+  window.pasteText = async (id) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    try {
+      const text = await navigator.clipboard.readText();
+      el.value = text;
+    } catch {
+      alert('Falha ao colar. Copie o texto e cole manualmente.');
+    }
+  };
+
+  // Para copiar e colar via elemento textarea diretamente (botões internos)
+  window.copyTextByElement = (textarea) => {
+    if (!textarea) return;
+    textarea.select();
+    textarea.setSelectionRange(0, 99999);
+    navigator.clipboard.writeText(textarea.value).then(() => {
+      alert('Copiado!');
+    }).catch(() => {
+      alert('Falha ao copiar.');
+    });
+  };
+
+  window.pasteTextByElement = async (textarea) => {
+    if (!textarea) return;
+    try {
+      const text = await navigator.clipboard.readText();
+      textarea.value = text;
+    } catch {
+      alert('Falha ao colar. Copie o texto e cole manualmente.');
+    }
+  };
+
+  window.sumResponses = () => {
+    const mainQuestion = document.getElementById('mainQuestion').value.trim();
+    if (!mainQuestion) {
+      alert('Digite a questão principal.');
+      return;
+    }
+    let output = `Questão:\n${mainQuestion}\n\n`;
+
+    const sessions = sessionContainer.querySelectorAll('.session');
+    if (sessions.length === 0) {
+      alert('Adicione pelo menos uma sessão com respostas.');
+      return;
+    }
+
+    sessions.forEach((session, i) => {
+      const sessId = i + 1;
+      const pedido = session.querySelector('textarea').value.trim() || '(sem pedido)';
+      output += `Sessão ${sessId}:\n  Pedido:\n    ${pedido}\n`;
+
+      const subs = session.querySelectorAll('.subquestion');
+      subs.forEach((sub, j) => {
+        const subId = j + 1;
+        const subQ = sub.querySelectorAll('textarea')[0].value.trim() || '(sem subquestão)';
+        const resposta = sub.querySelectorAll('textarea')[1].value.trim() || '(sem resposta)';
+        output += `  Subquestão ${subId}:\n    ${subQ}\n  Resposta:\n    ${resposta}\n`;
+      });
+
+      output += '\n';
+    });
+
+    document.getElementById('result').textContent = output;
+  };
+
+  window.exportJSON = () => {
+    const data = {};
+    data.mainQuestion = document.getElementById('mainQuestion').value;
+
+    data.sessions = [];
+    const sessions = sessionContainer.querySelectorAll('.session');
+    sessions.forEach(session => {
+      const sessData = {};
+      sessData.pedido = session.querySelector('textarea').value;
+      sessData.subquestions = [];
+      const subs = session.querySelectorAll('.subquestion');
+      subs.forEach(sub => {
+        const texts = sub.querySelectorAll('textarea');
+        sessData.subquestions.push({
+          subquestao: texts[0].value,
+          resposta: texts[1].value
+        });
+      });
+      data.sessions.push(sessData);
+    });
+
+    data.finalAnswer = document.getElementById('finalAnswer').value;
+
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'comparador_respostas.json';
+    a.click();
+  };
+
+  window.importJSON = (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = e => {
+      try {
+        const data = JSON.parse(e.target.result);
+
+        if (typeof data.mainQuestion === 'string') {
+          document.getElementById('mainQuestion').value = data.mainQuestion;
+        }
+        sessionContainer.innerHTML = '';
+        sessionCount = 0;
+
+        if (Array.isArray(data.sessions)) {
+          data.sessions.forEach(sess => {
+            addSession();
+            const currentSession = document.getElementById(`session${sessionCount}`);
+            currentSession.querySelector('textarea').value = sess.pedido || '';
+
+            const container = currentSession.querySelector('.subquestions-container');
+            container.innerHTML = '';
+            if (Array.isArray(sess.subquestions) && sess.subquestions.length > 0) {
+              sess.subquestions.forEach((sub, idx) => {
+                const subDiv = createSubQuestion(sessionCount, idx + 1);
+                container.appendChild(subDiv);
+                const texts = subDiv.querySelectorAll('textarea');
+                texts[0].value = sub.subquestao || '';
+                texts[1].value = sub.resposta || '';
+              });
+            } else {
+              // Se não tiver subquestões, cria uma vazia
+              addSubQuestion(sessionCount);
+            }
+          });
+        }
+
+        if (typeof data.finalAnswer === 'string') {
+          document.getElementById('finalAnswer').value = data.finalAnswer;
+        }
+
+        alert('JSON importado com sucesso! (Clique em "Somar Respostas" para atualizar o resumo)');
+      } catch (err) {
+        alert('Erro ao importar JSON.');
+      }
+    };
+    reader.readAsText(file);
+    event.target.value = ''; // Reset input
+  };
+
+  window.toggleTip = () => {
+    const tip = document.getElementById('tipContainer');
+    tip.style.display = tip.style.display === 'block' ? 'none' : 'block';
+  };
+
+  window.onload = () => {
+    if (sessionCount === 0) {
+      addSession();
+      addSession();
+    }
+  };
+
+  // Expor funções globais para o html
+  window.createSubQuestion = createSubQuestion;
+  window.createSession = createSession;
+  window.addSubQuestion = window.addSubQuestion;
+  window.addSession = window.addSession;
+  window.removeSession = window.removeSession;
+  window.copyText = window.copyText;
+  window.pasteText = window.pasteText;
+  window.copyTextByElement = window.copyTextByElement;
+  window.pasteTextByElement = window.pasteTextByElement;
+  window.sumResponses = window.sumResponses;
+  window.exportJSON = window.exportJSON;
+  window.importJSON = window.importJSON;
+  window.toggleTip = window.toggleTip;
+})();
+
+</script>
+
+</body>
+</html>
