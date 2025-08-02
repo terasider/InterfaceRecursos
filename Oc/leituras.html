@@ -1,0 +1,696 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Organizador de Leitura/Progresso</title>
+<style>
+  /* Reset & basics */
+  * {
+    box-sizing: border-box;
+  }
+  body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    margin: 0; padding: 0; background: #f4f7fa; color: #333;
+    display: flex; flex-direction: column; min-height: 100vh;
+  }
+  header {
+    background: #007bff;
+    color: white;
+    padding: 1rem 2rem;
+    font-size: 1.5rem;
+    font-weight: 700;
+    box-shadow: 0 3px 6px rgba(0,0,0,0.1);
+  }
+  
+  main {
+    display: flex;
+    flex-direction: column; /* ALTERADO: vertical */
+    gap: 1rem;
+    padding: 1rem 2rem;
+    background: white;
+    max-width: 600px; /* largura menor para caber na vertical */
+    margin: 1rem auto;
+    border-radius: 8px;
+    box-shadow: 0 3px 10px rgba(0,0,0,0.05);
+    flex-wrap: nowrap;
+  }
+
+  section {
+    background: #fff;
+    padding: 1rem;
+    border-radius: 8px;
+    box-shadow: 0 1px 4px rgb(0 0 0 / 0.1);
+    flex: none; /* não expandir, manter natural */
+    display: flex;
+    flex-direction: column;
+  }
+  h2 {
+    margin-top: 0;
+    border-bottom: 2px solid #007bff;
+    padding-bottom: 0.5rem;
+    font-weight: 600;
+  }
+  button {
+    background: #007bff;
+    border: none;
+    color: white;
+    padding: 0.5rem 1rem;
+    border-radius: 5px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+  }
+  button:hover {
+    background: #0056b3;
+  }
+  input, select {
+    padding: 0.4rem 0.6rem;
+    border-radius: 5px;
+    border: 1.5px solid #ccc;
+    font-size: 1rem;
+    width: 100%;
+    margin-bottom: 0.8rem;
+  }
+  label {
+    font-weight: 600;
+    margin-bottom: 0.2rem;
+    display: block;
+  }
+  ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    overflow-y: auto;
+    max-height: 200px;
+  }
+  ul li {
+    padding: 0.4rem 0.6rem;
+    border-bottom: 1px solid #ddd;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+  }
+  ul li:hover {
+    background-color: #f0f5ff;
+  }
+  .material-info {
+    flex-grow: 1;
+  }
+  .material-meta {
+    font-size: 0.85rem;
+    color: #555;
+  }
+  .selected {
+    background-color: #cce0ff !important;
+  }
+
+  /* Botão excluir */
+  .btn-delete {
+    background: #dc3545;
+    border: none;
+    padding: 0.3rem 0.6rem;
+    border-radius: 4px;
+    color: white;
+    font-weight: 700;
+    cursor: pointer;
+    margin-left: 0.5rem;
+    flex-shrink: 0;
+  }
+  .btn-delete:hover {
+    background: #a71d2a;
+  }
+
+  /* Calendário simples */
+  .calendar {
+    width: 100%;
+    margin-top: 1rem;
+    border-collapse: collapse;
+  }
+  .calendar th, .calendar td {
+    width: 14.28%;
+    height: 40px;
+    text-align: center;
+    vertical-align: middle;
+    cursor: pointer;
+    border-radius: 5px;
+    transition: background-color 0.25s ease;
+    position: relative;
+  }
+  .calendar th {
+    font-weight: 600;
+    color: #007bff;
+  }
+  .calendar td:hover {
+    background-color: #d9e8ff;
+  }
+  .calendar .today {
+    border: 2px solid #007bff;
+  }
+  .calendar .progress-day {
+    background-color: #007bff;
+    color: white;
+  }
+  .calendar .progress-day.meta-hit::after {
+    content: "✓";
+    position: absolute;
+    top: 4px;
+    right: 6px;
+    font-weight: 700;
+    color: #28a745;
+  }
+
+  /* Progress form */
+  .progress-form {
+    margin-top: 1rem;
+  }
+  .progress-form label {
+    font-weight: 600;
+  }
+  .progress-material-list {
+    max-height: 150px;
+    overflow-y: auto;
+    margin-bottom: 1rem;
+  }
+  .progress-material-list div {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 0.3rem;
+  }
+  .progress-material-list input[type=number] {
+    width: 70px;
+  }
+  .progress-material-list label {
+    flex-grow: 1;
+    margin-right: 0.5rem;
+  }
+
+  /* Export / import */
+  .import-export {
+    margin-top: 1rem;
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+  .import-export > * {
+    flex: 1;
+  }
+
+  /* Gráfico */
+  #progressChart {
+    max-width: 100%;
+    height: 250px;
+  }
+
+  /* Scrollbars for lists */
+  ul::-webkit-scrollbar,
+  .progress-material-list::-webkit-scrollbar {
+    width: 8px;
+  }
+  ul::-webkit-scrollbar-thumb,
+  .progress-material-list::-webkit-scrollbar-thumb {
+    background: #007bff;
+    border-radius: 10px;
+  }
+  ul::-webkit-scrollbar-track,
+  .progress-material-list::-webkit-scrollbar-track {
+    background: #f0f0f0;
+  }
+
+  /* Responsive */
+  @media (max-width: 900px) {
+    main {
+      max-width: 100%;
+      padding: 1rem;
+    }
+  }
+</style>
+</head>
+<body>
+<header>Organizador de Leitura e Progresso</header>
+<main>
+  <section>
+    <h2>Materiais</h2>
+    <form id="addMaterialForm">
+      <label for="materialName">Nome do material</label>
+      <input type="text" id="materialName" required placeholder="Ex: Livro X, Vídeo Y" />
+      <label for="materialType">Tipo</label>
+      <select id="materialType" required>
+        <option value="Livro">Livro</option>
+        <option value="PDF">PDF</option>
+        <option value="Vídeo">Vídeo</option>
+        <option value="Outro">Outro</option>
+      </select>
+      <label for="materialTotal">Total páginas/minutos</label>
+      <input type="number" id="materialTotal" min="1" required placeholder="Ex: 300" />
+      <button type="submit">Adicionar Material</button>
+    </form>
+
+    <ul id="materialsList" title="Clique para selecionar material"></ul>
+  </section>
+
+  <section>
+    <h2>Calendário e Progresso</h2>
+    <div id="calendarContainer"></div>
+
+    <form id="progressForm" class="progress-form" style="display:none;">
+      <h3>Registrar progresso para <span id="selectedDateDisplay"></span></h3>
+      <div class="progress-material-list" id="progressMaterialsContainer"></div>
+      <button type="submit">Salvar progresso</button>
+    </form>
+  </section>
+
+  <section>
+    <h2>Progresso Geral</h2>
+
+  <div id="chartWrapper" style="overflow-x:auto;">
+    <canvas id="progressChart" style="min-width:600px;"></canvas>
+  </div>
+
+    <div class="import-export">
+      <button id="exportBtn">Exportar dados JSON</button>
+      <input type="file" id="importFile" accept=".json" />
+    </div>
+  </section>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+  // REMOVIDO USO DE localStorage para salvar dados — salvar só em memória e exportar/importar via JSON
+
+  // Estado global
+  let data = {
+    materials: [],
+    progress: {}
+  };
+
+  let selectedMaterialId = null;
+  let selectedDate = null;
+
+  // DOM refs
+  const materialsList = document.getElementById('materialsList');
+  const addMaterialForm = document.getElementById('addMaterialForm');
+  const calendarContainer = document.getElementById('calendarContainer');
+  const progressForm = document.getElementById('progressForm');
+  const progressMaterialsContainer = document.getElementById('progressMaterialsContainer');
+  const selectedDateDisplay = document.getElementById('selectedDateDisplay');
+  const exportBtn = document.getElementById('exportBtn');
+  const importFile = document.getElementById('importFile');
+  const ctx = document.getElementById('progressChart').getContext('2d');
+
+  // Utils
+  function saveData() {
+    // Só mantém em memória
+  }
+  function loadData() {
+    // Inicialmente vazio, nada a carregar
+  }
+  function generateId() {
+    return 'm-' + Math.random().toString(36).slice(2, 9);
+  }
+  function formatDate(d) {
+    return d.toISOString().slice(0,10);
+  }
+  function parseDate(str) {
+    return new Date(str + 'T00:00:00');
+  }
+  function daysInMonth(year, month) {
+    return new Date(year, month+1, 0).getDate();
+  }
+  function isToday(d) {
+    const today = new Date();
+    return d.getFullYear() === today.getFullYear() &&
+      d.getMonth() === today.getMonth() &&
+      d.getDate() === today.getDate();
+  }
+
+  // Atualiza lista de materiais
+  function renderMaterialsList() {
+    materialsList.innerHTML = '';
+    data.materials.forEach(m => {
+      const li = document.createElement('li');
+      li.dataset.id = m.id;
+      li.classList.toggle('selected', m.id === selectedMaterialId);
+
+      const infoDiv = document.createElement('div');
+      infoDiv.className = 'material-info';
+      infoDiv.innerHTML = `<strong>${m.name}</strong> <span class="material-meta">(${m.type}, total: ${m.total})</span>`;
+
+      li.appendChild(infoDiv);
+
+      // Botão excluir
+      const btnDelete = document.createElement('button');
+      btnDelete.textContent = 'X';
+      btnDelete.className = 'btn-delete';
+      btnDelete.title = 'Excluir material';
+      btnDelete.addEventListener('click', (ev) => {
+        ev.stopPropagation(); // para não selecionar material
+        if (confirm(`Excluir o material "${m.name}"?`)) {
+          removeMaterial(m.id);
+        }
+      });
+      li.appendChild(btnDelete);
+
+      // Selecionar ao clicar no item (sem excluir)
+      li.addEventListener('click', () => {
+        selectedMaterialId = m.id;
+        renderMaterialsList();
+        // Quando selecionar um material, não altera o calendário, só o highlight
+      });
+
+      materialsList.appendChild(li);
+    });
+  }
+
+  function removeMaterial(id) {
+    // Remove material
+    data.materials = data.materials.filter(m => m.id !== id);
+
+    // Remove progresso associado a este material em todas as datas
+    Object.keys(data.progress).forEach(dateStr => {
+      if (data.progress[dateStr]) {
+        delete data.progress[dateStr][id];
+        // Se ficar vazio, apaga a data
+        if (Object.keys(data.progress[dateStr]).length === 0) {
+          delete data.progress[dateStr];
+        }
+      }
+    });
+    if (selectedMaterialId === id) selectedMaterialId = null;
+
+    renderMaterialsList();
+    renderCalendar();
+    renderProgressForm();
+    updateChart();
+  }
+
+  // Adicionar material
+  addMaterialForm.addEventListener('submit', e => {
+    e.preventDefault();
+    const name = document.getElementById('materialName').value.trim();
+    const type = document.getElementById('materialType').value;
+    const total = parseInt(document.getElementById('materialTotal').value);
+    if (!name || !type || !total || total < 1) {
+      alert('Preencha todos os campos corretamente.');
+      return;
+    }
+    data.materials.push({id: generateId(), name, type, total});
+    addMaterialForm.reset();
+    renderMaterialsList();
+    renderProgressForm();
+    updateChart();
+  });
+
+  // Render calendário simples do mês atual
+  function renderCalendar() {
+    calendarContainer.innerHTML = '';
+
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = today.getMonth();
+
+    const firstDay = new Date(year, month, 1);
+    const firstWeekday = firstDay.getDay(); // 0=Domingo .. 6=Sábado
+
+    const totalDays = daysInMonth(year, month);
+
+    const table = document.createElement('table');
+    table.className = 'calendar';
+
+    // Cabeçalho dias da semana
+    const header = document.createElement('thead');
+    const trHeader = document.createElement('tr');
+    ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].forEach(day => {
+      const th = document.createElement('th');
+      th.textContent = day;
+      trHeader.appendChild(th);
+    });
+    header.appendChild(trHeader);
+    table.appendChild(header);
+
+    // Corpo do calendário
+    const tbody = document.createElement('tbody');
+    let dayCounter = 1;
+    for (let week = 0; week < 6; week++) {
+      const tr = document.createElement('tr');
+      for (let wd = 0; wd < 7; wd++) {
+        const td = document.createElement('td');
+        const currentPos = week * 7 + wd;
+        if (currentPos >= firstWeekday && dayCounter <= totalDays) {
+          td.textContent = dayCounter;
+          const dateStr = formatDate(new Date(year, month, dayCounter));
+
+          // Marcar hoje
+          if (isToday(new Date(year, month, dayCounter))) {
+            td.classList.add('today');
+          }
+
+          // Se existe progresso neste dia para algum material, marca
+          if (data.progress[dateStr]) {
+            td.classList.add('progress-day');
+
+            // Se bater meta de algum material, marca com ✓
+            const progressForDay = data.progress[dateStr];
+            let metaHit = false;
+            for (const matId in progressForDay) {
+              const prog = progressForDay[matId];
+              const mat = data.materials.find(m => m.id === matId);
+              if (mat && prog >= mat.total) {
+                metaHit = true;
+                break;
+              }
+            }
+            if (metaHit) td.classList.add('meta-hit');
+          }
+
+          // Selecionar data para editar progresso
+          td.style.cursor = 'pointer';
+          td.addEventListener('click', () => {
+            selectedDate = dateStr;
+            renderProgressForm();
+            renderCalendar(); // para destacar o dia selecionado
+          });
+
+          if (selectedDate === dateStr) {
+            td.style.backgroundColor = '#a7c1ff';
+          }
+
+          dayCounter++;
+        }
+        tr.appendChild(td);
+      }
+      tbody.appendChild(tr);
+      if (dayCounter > totalDays) break;
+    }
+    table.appendChild(tbody);
+    calendarContainer.appendChild(table);
+  }
+
+  // Render formulário para registrar progresso para a data selecionada
+  function renderProgressForm() {
+    if (!selectedDate) {
+      progressForm.style.display = 'none';
+      return;
+    }
+    selectedDateDisplay.textContent = selectedDate;
+    progressMaterialsContainer.innerHTML = '';
+
+    if (data.materials.length === 0) {
+      progressMaterialsContainer.textContent = 'Adicione materiais para registrar progresso.';
+      progressForm.style.display = 'block';
+      return;
+    }
+
+    data.materials.forEach(m => {
+      const div = document.createElement('div');
+      const label = document.createElement('label');
+      label.textContent = `${m.name} (${m.type}) - Total: ${m.total}`;
+
+      const input = document.createElement('input');
+      input.type = 'number';
+      input.min = 0;
+      input.max = m.total;
+      input.name = m.id;
+      input.placeholder = 'Páginas/minutos';
+      input.value = data.progress[selectedDate]?.[m.id] ?? 0;
+
+      div.appendChild(label);
+      div.appendChild(input);
+      progressMaterialsContainer.appendChild(div);
+    });
+
+    progressForm.style.display = 'block';
+  }
+
+  // Salvar progresso da data selecionada
+  progressForm.addEventListener('submit', e => {
+    e.preventDefault();
+    if (!selectedDate) return;
+
+    const inputs = progressMaterialsContainer.querySelectorAll('input[type=number]');
+    if (!data.progress[selectedDate]) data.progress[selectedDate] = {};
+
+    inputs.forEach(input => {
+      let val = parseInt(input.value);
+      if (isNaN(val) || val < 0) val = 0;
+      const matId = input.name;
+      const mat = data.materials.find(m => m.id === matId);
+      if (mat) {
+        if (val > mat.total) val = mat.total;
+        data.progress[selectedDate][matId] = val;
+      }
+    });
+
+    // Remove progresso vazio (0) para não poluir
+    Object.entries(data.progress[selectedDate]).forEach(([matId, val]) => {
+      if (val === 0) delete data.progress[selectedDate][matId];
+    });
+    if (Object.keys(data.progress[selectedDate]).length === 0) {
+      delete data.progress[selectedDate];
+    }
+
+    renderCalendar();
+    updateChart();
+    alert('Progresso salvo!');
+  });
+
+  // Gráfico geral do progresso por material (total acumulado)
+  let chart;
+  function updateChart() {
+  if (chart) chart.destroy();
+
+  const chartWrapper = document.getElementById('chartWrapper');
+  const materialCount = data.materials.length;
+
+  // Largura desejada (100px por material)
+  const canvasWidth = Math.max(600, materialCount * 100);
+  const canvasHeight = 400;  // altura fixa
+
+  const canvas = document.getElementById('progressChart');
+
+  // Ajusta o tamanho real do canvas (resolução)
+  canvas.width = canvasWidth;
+  canvas.height = canvasHeight;
+
+  // Opcional: remove largura do CSS para não distorcer
+  canvas.style.width = canvasWidth + 'px';
+  canvas.style.height = canvasHeight + 'px';
+
+  // Atualiza o wrapper pra permitir scroll
+  chartWrapper.style.width = '100%';  // ocupa 100% do container
+  chartWrapper.style.overflowX = 'auto';
+
+  // Dados para o gráfico
+  const totals = {};
+  data.materials.forEach(m => totals[m.id] = 0);
+
+  for (const day in data.progress) {
+    for (const matId in data.progress[day]) {
+      if (totals.hasOwnProperty(matId)) {
+        totals[matId] += data.progress[day][matId];
+      }
+    }
+  }
+
+  const labels = data.materials.map(m => m.name);
+  const values = data.materials.map(m => {
+    const totalRead = totals[m.id] || 0;
+    return totalRead > m.total ? m.total : totalRead;
+  });
+
+  const maxTotals = data.materials.map(m => m.total);
+
+  chart = new Chart(canvas.getContext('2d'), {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        {
+          label: 'Progresso',
+          data: values,
+          backgroundColor: 'rgba(0, 123, 255, 0.7)'
+        },
+        {
+          label: 'Meta total',
+          data: maxTotals,
+          type: 'line',
+          borderColor: '#28a745',
+          borderWidth: 2,
+          fill: false,
+          tension: 0.3
+        }
+      ]
+    },
+    options: {
+      scales: {
+        y: {
+          beginAtZero: true
+        }
+      },
+      responsive: false,
+      plugins: {
+        legend: {
+          position: 'top',
+        },
+        tooltip: {
+          enabled: true
+        }
+      }
+    }
+  });
+}
+
+
+
+  // Exportar dados para JSON
+  exportBtn.addEventListener('click', () => {
+    const jsonStr = JSON.stringify(data, null, 2);
+    const blob = new Blob([jsonStr], {type: 'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'leitura_progresso.json';
+    a.click();
+    URL.revokeObjectURL(url);
+  });
+
+  // Importar dados JSON
+  importFile.addEventListener('change', e => {
+    const file = importFile.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const importedData = JSON.parse(reader.result);
+        if (importedData.materials && importedData.progress) {
+          data = importedData;
+          selectedMaterialId = null;
+          selectedDate = null;
+          renderMaterialsList();
+          renderCalendar();
+          renderProgressForm();
+          updateChart();
+          alert('Dados importados com sucesso!');
+        } else {
+          alert('Arquivo JSON inválido.');
+        }
+      } catch(err) {
+        alert('Erro ao ler arquivo JSON.');
+      }
+      importFile.value = ''; // limpar
+    };
+    reader.readAsText(file);
+  });
+
+  // Inicialização
+  loadData();
+  renderMaterialsList();
+  renderCalendar();
+  renderProgressForm();
+  updateChart();
+</script>
+</body>
+</html>
