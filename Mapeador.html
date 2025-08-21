@@ -1,0 +1,780 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8" />
+  <title>Mapa Mental MVP Avançado</title>
+  <style>
+    body, html {
+      height: 100%; margin: 0; font-family: Arial, sans-serif; background: #121212; color: white;
+      display: flex; flex-direction: column; align-items: center; padding: 10px;
+    }
+#cy {
+  width: 90vw;
+  height: 70vh;
+  border: 2px solid #555;
+  border-radius: 10px;
+  background-color: #222;
+  cursor: grab;
+  display: flex;
+  flex-direction: row;
+  /* overflow: hidden;  REMOVA ESTA LINHA */
+}
+
+
+    #controls {
+      margin-top: 15px;
+      display: flex;
+      gap: 10px;
+    }
+    button {
+      padding: 10px 20px;
+      font-size: 16px;
+      border: none;
+      border-radius: 8px;
+      background-color: #007bff;
+      color: white;
+      cursor: pointer;
+      transition: background-color 0.2s ease;
+    }
+    button:hover:not(:disabled) {
+      background-color: #0056b3;
+    }
+    button:disabled {
+      background-color: #444;
+      cursor: not-allowed;
+    }
+#hoverContent {
+  width: 300px;
+  max-height: 70vh;        /* limitar altura para caber na tela */
+  overflow: auto;          /* scroll vertical e horizontal */
+  white-space: pre-wrap;   /* para respeitar quebras de linha */
+  word-wrap: break-word;   /* quebrar palavras longas */
+  position: fixed;
+  top: 100px;              /* ajuste conforme seu layout */
+  right: 20px;
+  background-color: #1e1e1e;
+  color: white;
+  padding: 10px;
+  border-left: 1px solid #444;
+  font-size: 14px;
+  display: none;
+  z-index: 1000;
+}
+
+ body, html {
+      height: 100%; margin: 0; font-family: Arial, sans-serif; background: #121212; color: white;
+      display: flex; flex-direction: column; align-items: center; padding: 10px;
+    }
+    #cy {
+      width: 90vw; height: 70vh; border: 2px solid #555; border-radius: 10px;
+      background-color: #222; cursor: grab; display: flex;
+    }
+    #controls {
+      margin-top: 15px; display: flex; gap: 10px; flex-wrap: wrap;
+    }
+    button {
+      padding: 10px 20px; font-size: 16px; border: none; border-radius: 8px;
+      background-color: #007bff; color: white; cursor: pointer;
+    }
+    button:disabled { background-color: #444; cursor: not-allowed; }
+
+  </style>
+  <script src="https://unpkg.com/cytoscape@3.24.2/dist/cytoscape.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+</head>
+<body>
+
+  <h1>Mapa Mental MVP Avançado</h1>
+
+<div id="cy">
+  <div id="cyGraph" style="flex: 1; position: relative;"></div>
+</div>
+<div id="hoverBridge" style="
+  position: fixed;
+  top: 100px;
+  right: 320px;
+  width: 20px;
+  height: 300px;
+  z-index: 999;
+"></div>
+
+<div id="hoverContent" tabindex="0" style="
+    width: 300px;
+    max-height: 70vh;
+    overflow: auto;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    position: fixed;
+    top: 100px;
+    right: 20px;
+    background-color: #1e1e1e;
+    color: white;
+    padding: 10px;
+    border-left: 1px solid #444;
+    font-size: 14px;
+    display: none;
+    z-index: 1000;
+"></div>
+
+
+
+  <div id="controls">
+    <button id="btnAddNode">➕ Criar Nó Solto</button>
+    <button id="btnAddNodeLigado" disabled>➕ Adicionar Nó Ligado</button>
+    <button id="btnConectarNos" disabled>🔗 Conectar Nós SelecionADOS</button>
+<button id="btnExcluirConexao" disabled>❌ Excluir Conexão Selecionada</button>
+
+    <button id="btnExcluirNo" disabled>🗑️ Excluir Nó Selecionado</button>
+<button onclick="exportJSON()">⬇️ Exportar JSON</button>
+<button onclick="importJSON()">⬆️ Importar JSON</button>
+<button onclick="exportToPDF()">📄 Exportar PDF</button>
+<button onclick="exportPrintablePDF()">🖨️ PDF p/ Impressão</button>
+
+
+<input type="file" id="fileInput" style="display: none;" onchange="loadJSON(event)" />
+
+  </div>
+
+ <div id="contentEditor" style="display:none; position: fixed; top: 20%; left: 50%; transform: translateX(-50%); width: 400px; background: #1e1e1e; color: white; border: 1px solid #555; border-radius: 10px; padding: 20px; z-index: 1000;">
+  <h3 id="editorTitle">Editar Conteúdo</h3>
+  <textarea id="editorTextarea" style="width: 100%; height: 150px; background: #111; color: white; padding: 10px; border-radius: 5px; border: 1px solid #444;"></textarea>
+  <div style="margin-top: 10px; display: flex; justify-content: space-between;">
+    <button onclick="copiarConteudo()">📋 Copiar</button>
+    <button onclick="colarConteudo()">📥 Colar</button>
+    <button onclick="salvarConteudo()">💾 Salvar</button>
+    <button onclick="fecharEditor()">❌ Fechar</button>
+  </div>
+</div>
+<div id="hoverInfo" style="
+  position: fixed;
+  bottom: 10px;
+  right: 10px;
+  width: 300px;
+  max-height: 200px;
+  overflow-y: auto;
+  background: #1e1e1e;
+  color: white;
+  padding: 10px;
+  border: 1px solid #555;
+  border-radius: 8px;
+  font-size: 14px;
+  display: none;
+  z-index: 999;
+"></div>
+
+<script>
+let cy;
+
+document.addEventListener("DOMContentLoaded", () => {
+  // Inicializa o Cytoscape
+  cy = cytoscape({
+    container: document.getElementById('cyGraph'),
+
+    elements: [],
+    style: [
+      {
+        selector: 'node',
+        style: {
+          'content': 'data(label)',
+          'text-valign': 'center',
+          'color': '#fff',
+          'background-color': '#007bff',
+          'padding': '10px',
+          'text-wrap': 'wrap',
+          'text-max-width': 120,
+          'font-size': '14px',
+          'border-radius': '8px',
+          'width': 'label',
+          'height': 'label',
+          'text-events': 'yes',
+          'cursor': 'pointer'
+        }
+      },
+      {
+        selector: 'edge',
+        style: {
+          'width': 3,
+          'line-color': '#888',
+          'target-arrow-color': '#888',
+          'target-arrow-shape': 'triangle',
+          'curve-style': 'bezier'
+        }
+      },
+      {
+        selector: ':selected',
+        style: {
+          'border-color': '#FFD700',
+          'border-width': 3,
+          'border-style': 'double'
+        }
+      }
+    ],
+    layout: { name: 'preset' },
+
+    userZoomingEnabled: true,
+wheelSensitivity: 0.05,
+    userPanningEnabled: true,
+    boxSelectionEnabled: true,
+  });
+
+  // Nó inicial
+  const startId = 'n1';
+  cy.add({
+    data: { id: startId, label: 'Ideia Principal' },
+    position: { x: 300, y: 300 }
+  });
+
+  // Estados
+  let idCounter = 2;
+  let noSelecionado = null;
+
+  const btnAddNode = document.getElementById('btnAddNode');
+  const btnAddNodeLigado = document.getElementById('btnAddNodeLigado');
+  const btnExcluirConexao = document.getElementById('btnExcluirConexao');
+  const btnExcluirNo = document.getElementById('btnExcluirNo');
+  const btnConectarNos = document.getElementById('btnConectarNos');
+
+  // Atualiza estado dos botões
+  function atualizarBotoes() {
+    const selecionados = cy.$('node:selected');
+    noSelecionado = selecionados.length === 1 ? selecionados[0] : null;
+    btnExcluirNo.disabled = selecionados.length !== 1;
+    btnAddNodeLigado.disabled = selecionados.length !== 1;
+    btnConectarNos.disabled = selecionados.length < 2;
+    btnExcluirConexao.disabled = cy.$('edge:selected').length === 0;
+  }
+
+  cy.on('select unselect', 'node', atualizarBotoes);
+  cy.on('select unselect', 'edge', atualizarBotoes);
+
+  // Eventos tap
+  cy.on('tap', function(evt) {
+    const alvo = evt.target;
+
+    if (!alvo.isNode()) return;
+
+    const content = (alvo.data('content') || '').trim();
+
+    // ALT + clique abre links do conteúdo em novas abas
+    if (evt.originalEvent.altKey) {
+      const links = [...content.matchAll(/https?:\/\/[^\s]+/gi)].map(match => match[0]);
+      if (links.length === 0) {
+        alert("Nenhum link encontrado no conteúdo.");
+        return;
+      }
+      links.forEach(link => window.open(link, '_blank'));
+    }
+
+    // SHIFT + clique abre editor
+    else if (evt.originalEvent.shiftKey) {
+      abrirEditor(alvo);
+    }
+  });
+
+  const hoverContent = document.getElementById('hoverContent');
+
+  // Variáveis para controle de hover no painel e no nó/aresta
+  let hoverTimeout = null;
+  let mouseOverNodeOrEdge = false;
+  let mouseOverHoverContent = false;
+
+  function showHoverContent(text) {
+    hoverContent.innerText = text;
+    hoverContent.style.display = 'block';
+    hoverContent.focus();  // para ativar foco e capturar teclado
+  }
+
+  function hideHoverContent() {
+    hoverContent.style.display = 'none';
+    hoverContent.innerText = '';
+  }
+
+  // Mostrar conteúdo na área lateral ao passar mouse sobre nó ou aresta
+  cy.on('mouseover', 'node, edge', evt => {
+    mouseOverNodeOrEdge = true;
+    const alvo = evt.target;
+    const conteudo = (alvo.data('content') || '').trim();
+    if (conteudo) {
+      showHoverContent(conteudo);
+    } else {
+      hideHoverContent();
+    }
+  });
+
+  // Ocultar conteúdo ao tirar o mouse (com delay para permitir mover para painel)
+  cy.on('mouseout', 'node, edge', () => {
+    mouseOverNodeOrEdge = false;
+hoverTimeout = setTimeout(() => {
+  if (!mouseOverHoverContent) {
+    hideHoverContent();
+  }
+}, 500); // aumento de tolerância
+
+  });
+
+  // Detecta mouse no painel hoverContent para não fechar
+  hoverContent.addEventListener('mouseenter', () => {
+    mouseOverHoverContent = true;
+    if (hoverTimeout) {
+      clearTimeout(hoverTimeout);
+      hoverTimeout = null;
+    }
+  });
+
+  // Ao sair do painel, esconde se não estiver no nó/aresta
+  hoverContent.addEventListener('mouseleave', () => {
+    mouseOverHoverContent = false;
+    if (!mouseOverNodeOrEdge) {
+      hideHoverContent();
+    }
+  });
+const hoverBridge = document.getElementById('hoverBridge');
+
+hoverBridge.addEventListener('mouseenter', () => {
+  mouseOverHoverContent = true;
+  if (hoverTimeout) {
+    clearTimeout(hoverTimeout);
+    hoverTimeout = null;
+  }
+});
+
+hoverBridge.addEventListener('mouseleave', () => {
+  mouseOverHoverContent = false;
+  if (!mouseOverNodeOrEdge) {
+    hideHoverContent();
+  }
+});
+
+  // Scroll via teclado no painel
+  hoverContent.addEventListener('keydown', (e) => {
+    const step = 30; // pixels para cada passo de scroll
+    switch(e.key) {
+      case 'ArrowUp':
+        hoverContent.scrollTop -= step;
+        e.preventDefault();
+        break;
+      case 'ArrowDown':
+        hoverContent.scrollTop += step;
+        e.preventDefault();
+        break;
+      case 'ArrowLeft':
+        hoverContent.scrollLeft -= step;
+        e.preventDefault();
+        break;
+      case 'ArrowRight':
+        hoverContent.scrollLeft += step;
+        e.preventDefault();
+        break;
+    }
+  });
+
+  // Criar nó solto
+  btnAddNode.onclick = () => {
+    const texto = prompt("Texto do novo nó:");
+    if (!texto) return;
+    const novoId = `n${idCounter++}`;
+    cy.add({
+      data: { id: novoId, label: texto },
+      position: {
+        x: cy.width() / 2 + (Math.random() * 200 - 100),
+        y: cy.height() / 2 + (Math.random() * 200 - 100)
+      }
+    }).select();
+  };
+
+  // Excluir conexões selecionadas
+  btnExcluirConexao.onclick = () => {
+    const arestasSelecionadas = cy.$('edge:selected');
+    if (arestasSelecionadas.length === 0) {
+      alert("Selecione uma ou mais conexões para excluir.");
+      return;
+    }
+    if (confirm(`Excluir ${arestasSelecionadas.length} conexão(ões)?`)) {
+      cy.remove(arestasSelecionadas);
+      atualizarBotoes();
+    }
+  };
+
+  // Criar nó ligado
+  btnAddNodeLigado.onclick = () => {
+    if (!noSelecionado) return;
+    const texto = prompt("Texto do novo nó ligado:");
+    if (!texto) return;
+    const novoId = `n${idCounter++}`;
+    const posBase = noSelecionado.position();
+    cy.add([
+      {
+        data: { id: novoId, label: texto },
+        position: {
+          x: posBase.x + 150,
+          y: posBase.y + (Math.random() * 100 - 50)
+        }
+      },
+      {
+        data: {
+          id: `e${Date.now()}`,
+          source: noSelecionado.id(),
+          target: novoId
+        }
+      }
+    ]);
+    cy.nodes().unselect();
+    cy.getElementById(novoId).select();
+  };
+
+  // Conectar múltiplos nós selecionados
+  btnConectarNos.onclick = () => {
+    const selecionados = cy.$('node:selected');
+    const ids = selecionados.map(n => n.id());
+    for (let i = 0; i < ids.length; i++) {
+      for (let j = i + 1; j < ids.length; j++) {
+        const s = ids[i], t = ids[j];
+        const existe = cy.edges().some(e =>
+          (e.data('source') === s && e.data('target') === t) ||
+          (e.data('source') === t && e.data('target') === s)
+        );
+        if (!existe) {
+          cy.add({ data: { id: `e${Date.now()}${i}${j}`, source: s, target: t } });
+        }
+      }
+    }
+    cy.nodes().unselect();
+    atualizarBotoes();
+  };
+
+  // Excluir nó selecionado
+  btnExcluirNo.onclick = () => {
+    if (noSelecionado && confirm(`Excluir nó "${noSelecionado.data('label')}"?`)) {
+      cy.remove(noSelecionado);
+      noSelecionado = null;
+      atualizarBotoes();
+    }
+  };
+
+  // Editar texto via duplo clique no nó
+  cy.on('tap', 'node', evt => {
+    if (evt.originalEvent.detail === 2) {
+      const node = evt.target;
+      const novoTexto = prompt("Editar texto:", node.data('label'));
+      if (novoTexto) node.data('label', novoTexto.trim());
+    }
+  });
+
+  // Exportar JSON
+  window.exportJSON = function () {
+    let nomeArquivo = prompt("Nome do arquivo para salvar (sem extensão):", "mapa-mental");
+    if (!nomeArquivo) return;
+
+    const elementos = cy.elements().map(ele => {
+      let json = ele.json();
+      if (!json.data.content) json.data.content = "";
+      return json;
+    });
+
+    const blob = new Blob([JSON.stringify(elementos, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = nomeArquivo.trim() + ".json";
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  // Importar JSON
+  window.importJSON = function () {
+    document.getElementById('fileInput').click();
+  };
+
+  window.loadJSON = function (event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = e => {
+      try {
+        const json = JSON.parse(e.target.result);
+        cy.elements().remove();
+        cy.add(json);
+        cy.layout({ name: 'preset' }).run();
+        idCounter = cy.nodes().length + 1;
+        atualizarBotoes();
+      } catch (err) {
+        alert("Erro ao importar JSON: " + err.message);
+      }
+    };
+    reader.readAsText(file);
+  };
+});
+
+let elementoEditando = null;
+
+function abrirEditor(elemento) {
+  elementoEditando = elemento;
+  const tipo = elemento.isNode() ? 'Nó' : 'Aresta';
+  document.getElementById('editorTitle').textContent = `Editar ${tipo}: ${elemento.data('label') || elemento.id()}`;
+  document.getElementById('editorTextarea').value = elemento.data('content') || '';
+  document.getElementById('contentEditor').style.display = 'block';
+}
+
+function fecharEditor() {
+  elementoEditando = null;
+  document.getElementById('contentEditor').style.display = 'none';
+}
+
+function salvarConteudo() {
+  if (elementoEditando) {
+    elementoEditando.data('content', document.getElementById('editorTextarea').value);
+    fecharEditor();
+  }
+}
+
+function copiarConteudo() {
+  const texto = document.getElementById('editorTextarea').value;
+  navigator.clipboard.writeText(texto).then(() => alert("Conteúdo copiado!"));
+}
+
+function colarConteudo() {
+  navigator.clipboard.readText().then(texto => {
+    document.getElementById('editorTextarea').value = texto;
+  });
+}
+
+async function exportToPDF() {
+  const { jsPDF } = window.jspdf;
+
+  const cyGraph = document.getElementById("cyGraph");
+  const doc = new jsPDF({
+    orientation: 'landscape',
+    unit: 'pt',
+    format: 'a4'
+  });
+
+  // Captura a imagem da div com o mapa mental
+  await html2canvas(cyGraph, {
+    backgroundColor: "#121212",
+    useCORS: true,
+    scale: 2
+  }).then(canvas => {
+    const imgData = canvas.toDataURL("image/png");
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const imgProps = doc.getImageProperties(imgData);
+    const ratio = Math.min(pageWidth / imgProps.width, pageHeight / imgProps.height);
+    const imgWidth = imgProps.width * ratio;
+    const imgHeight = imgProps.height * ratio;
+
+    doc.addImage(imgData, "PNG", (pageWidth - imgWidth) / 2, 20, imgWidth, imgHeight);
+  });
+
+  // Adiciona página com conteúdo de nós e arestas
+  doc.addPage("a4", "portrait");
+  doc.setFont("Courier", "normal");
+  doc.setFontSize(10);
+  let y = 40;
+
+  const wrapText = (text, maxWidth) => {
+    const words = text.split(" ");
+    let lines = [], line = "";
+    for (let w of words) {
+      const testLine = line + w + " ";
+      const width = doc.getTextWidth(testLine);
+      if (width > maxWidth && line !== "") {
+        lines.push(line);
+        line = w + " ";
+      } else {
+        line = testLine;
+      }
+    }
+    if (line) lines.push(line);
+    return lines;
+  };
+
+  doc.text("📌 Nós com conteúdo:", 40, y);
+  y += 20;
+  cy.nodes().forEach(node => {
+    const content = (node.data("content") || "").trim();
+    if (content) {
+      const label = node.data("label") || node.id();
+      const header = `🔹 ${label} (${node.id()})`;
+      const lines = wrapText(content, 500);
+      if (y + lines.length * 12 > 800) {
+        doc.addPage();
+        y = 40;
+      }
+      doc.text(header, 40, y);
+      y += 14;
+      lines.forEach(line => {
+        doc.text(line, 60, y);
+        y += 12;
+      });
+      y += 10;
+    }
+  });
+
+  doc.addPage();
+  y = 40;
+  doc.text("🔗 Arestas com conteúdo:", 40, y);
+  y += 20;
+  cy.edges().forEach(edge => {
+    const content = (edge.data("content") || "").trim();
+    if (content) {
+      const label = `De ${edge.data("source")} → ${edge.data("target")}`;
+      const lines = wrapText(content, 500);
+      if (y + lines.length * 12 > 800) {
+        doc.addPage();
+        y = 40;
+      }
+      doc.text(label, 40, y);
+      y += 14;
+      lines.forEach(line => {
+        doc.text(line, 60, y);
+        y += 12;
+      });
+      y += 10;
+    }
+  });
+
+  doc.save("mapa-mental.pdf");
+}
+
+function wrapText(doc, text, maxWidth) {
+  const words = text.split(" ");
+  let lines = [], line = "";
+  for (let w of words) {
+    const testLine = line + w + " ";
+    const width = doc.getTextWidth(testLine);
+    if (width > maxWidth && line !== "") {
+      lines.push(line);
+      line = w + " ";
+    } else {
+      line = testLine;
+    }
+  }
+  if (line) lines.push(line);
+  return lines;
+}
+
+async function generatePDFBase(isPrintable = false) {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation: "landscape", unit: "pt", format: "a4" });
+
+  const cyGraph = document.getElementById("cyGraph");
+
+  if (isPrintable) {
+    // Altere temporariamente o estilo para versão clara
+    cy.nodes().forEach(n => {
+      n.originalColor = n.style("background-color");
+      n.originalText = n.style("color");
+      n.style("background-color", "#ffffff");
+      n.style("color", "#000000");
+    });
+    cy.edges().forEach(e => {
+      e.originalColor = e.style("line-color");
+      e.style("line-color", "#000000");
+      e.style("target-arrow-color", "#000000");
+    });
+    cy.style().selector("node").style({ "border-color": "#000" }).update();
+    cy.container().style.backgroundColor = "#ffffff";
+  }
+
+  // Captura do canvas
+  await html2canvas(cyGraph, {
+    backgroundColor: isPrintable ? "#ffffff" : "#121212",
+    scale: 2,
+    useCORS: true
+  }).then(canvas => {
+    const imgData = canvas.toDataURL("image/png");
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const imgProps = doc.getImageProperties(imgData);
+    const ratio = Math.min(pageWidth / imgProps.width, pageHeight / imgProps.height);
+    const imgWidth = imgProps.width * ratio;
+    const imgHeight = imgProps.height * ratio;
+
+    doc.addImage(imgData, "PNG", (pageWidth - imgWidth) / 2, 20, imgWidth, imgHeight);
+  });
+
+  if (isPrintable) {
+    // Restaura estilo escuro original
+    cy.nodes().forEach(n => {
+      n.style("background-color", n.originalColor || "#007bff");
+      n.style("color", n.originalText || "#ffffff");
+    });
+    cy.edges().forEach(e => {
+      e.style("line-color", e.originalColor || "#888");
+      e.style("target-arrow-color", e.originalColor || "#888");
+    });
+    cy.container().style.backgroundColor = "#222";
+  }
+
+  // Conteúdo dos nós
+  doc.addPage("a4", "portrait");
+  doc.setFont("helvetica");
+  doc.setFontSize(10);
+  let y = 40;
+
+  doc.text("📌 Nós com conteúdo:", 40, y);
+  y += 20;
+  cy.nodes().forEach(node => {
+    const content = (node.data("content") || "").trim();
+    if (content) {
+      const label = node.data("label") || node.id();
+      const header = `🔹 ${label} (${node.id()})`;
+      const lines = wrapText(doc, content, 500);
+      if (y + lines.length * 12 > 800) {
+        doc.addPage();
+        y = 40;
+      }
+      doc.text(header, 40, y);
+      y += 14;
+      lines.forEach(line => {
+        doc.text(line, 60, y);
+        y += 12;
+      });
+      y += 10;
+    }
+  });
+
+  // Conteúdo das arestas
+  doc.addPage();
+  y = 40;
+  doc.text("🔗 Arestas com conteúdo:", 40, y);
+  y += 20;
+  cy.edges().forEach(edge => {
+    const content = (edge.data("content") || "").trim();
+    if (content) {
+      const label = `De ${edge.data("source")} → ${edge.data("target")}`;
+      const lines = wrapText(doc, content, 500);
+      if (y + lines.length * 12 > 800) {
+        doc.addPage();
+        y = 40;
+      }
+      doc.text(label, 40, y);
+      y += 14;
+      lines.forEach(line => {
+        doc.text(line, 60, y);
+        y += 12;
+      });
+      y += 10;
+    }
+  });
+
+  const nome = isPrintable ? "mapa-mental-impressao.pdf" : "mapa-mental.pdf";
+  doc.save(nome);
+}
+
+function exportToPDF() {
+  generatePDFBase(false);
+}
+
+function exportPrintablePDF() {
+  generatePDFBase(true);
+}
+
+
+</script>
+
+</body>
+</html>
