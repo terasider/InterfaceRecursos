@@ -93,6 +93,29 @@
   </div>
 
   <script>
+function mostrarAtalhos() {
+  alert(`🧠 Atalhos de Teclado Disponíveis, anote:
+
+🔁 Navegação entre itens:
+  ↑  - Ir para o item anterior
+  ↓  - Ir para o próximo item
+
+⌨️ Criação e edição com Ctrl:
+  Ctrl + ↑  - Novo item raiz
+  Ctrl + →  - Novo item abaixo (mesmo nível)
+  Ctrl + ↓  - Novo subitem
+  Ctrl + ←  - Excluir item atual
+
+🔄 Desfazer e Refazer:
+  Ctrl + Z  - Desfazer ação
+  Ctrl + Y  - Refazer ação
+
+🧭 Outros:
+  Ctrl + Backspace  - Focar no último item da lista
+`);
+}
+
+
     // Função para gerar IDs únicas
     function generateId() {
       return '_' + Math.random().toString(36).substr(2, 9);
@@ -443,3 +466,4 @@
   </script>
 </body>
 </html>
+
