@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <title>Checklist Interativo</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+      background: #f4f4f4;
+    }
+    h1 {
+      text-align: center;
+    }
+    .controls {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    button,
+    input[type="file"] {
+      margin: 5px;
+      padding: 6px 10px;
+      font-size: 14px;
+    }
+    ul {
+      list-style: none;
+      padding-left: 20px;
+    }
+    li {
+      margin: 8px 0;
+    }
+    .checklist-item {
+      background: white;
+      padding: 10px 10px 10px 30px;
+      border-left: 4px solid #ccc;
+      border-radius: 5px;
+      transition: background-color 0.3s, border-color 0.3s;
+      position: relative;
+      user-select: none;
+    }
+    .checklist-item.checked {
+      background-color: #d1ffd1;
+      border-color: #4caf50;
+    }
+    .checklist-item.partial {
+      background-color: #fff7b1;
+      border-color: #ffeb3b;
+    }
+    input[type="checkbox"] {
+      margin-right: 10px;
+      transform: scale(1.2);
+      vertical-align: middle;
+      cursor: pointer;
+    }
+    .status-dot {
+      position: absolute;
+      left: 8px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background-color: red;
+      transition: background-color 0.3s;
+    }
+    .status-dot.green {
+      background-color: #4caf50;
+    }
+    textarea {
+      width: 100%;
+      margin-top: 8px;
+      resize: vertical;
+      min-height: 40px;
+      display: none;
+      font-family: Arial, sans-serif;
+      font-size: 14px;
+      padding: 6px;
+      border-radius: 4px;
+      border: 1px solid #ccc;
+      box-sizing: border-box;
+    }
+    textarea.expanded {
+      display: block;
+    }
+    span.item-text {
+      cursor: pointer;
+      vertical-align: middle;
+    }
+  </style>
+</head>
+<body>
+  <h1>Checklist Interativo</h1>
+
+
+  <div id="checklistContainer"></div>
+<div class="controls">
+  <input type="file" accept=".json" onchange="importChecklist(event)" />
+  <button onclick="exportChecklist()">Exportar JSON</button>
+  <button onclick="exportPdf()">Exportar PDF</button>
+</div>
+
+<div class="format-controls" style="margin-bottom:20px; text-align:center;">
+  <label>Cor de fundo: <input type="color" id="bgColor" value="#ffffff"></label>
+  <label>Cor da fonte: <input type="color" id="fontColor" value="#000000"></label>
+  <label>Alinhamento:
+    <select id="textAlign">
+      <option value="left">Esquerda</option>
+      <option value="center">Centro</option>
+      <option value="right">Direita</option>
+      <option value="justify">Justificado</option>
+    </select>
+  </label>
+  <label>Tamanho da fonte:
+    <input type="number" id="fontSize" value="12" min="8" max="36" style="width:60px;">
+  </label>
+  <label><input type="checkbox" id="fontBold"> Negrito</label>
+  <button onclick="updatePreview()">Atualizar Preview</button>
+</div>
+
+<div id="pdfPreview" style="border:1px solid #ccc; height:500px;"></div>
+
+<!-- Substituindo jsPDF pelo pdfmake -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
+
+<script>
+  let checklistData = [];
+
+  function importChecklist(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        checklistData = JSON.parse(e.target.result);
+        ensureNote(checklistData);
+        renderChecklist();
+      } catch (err) {
+        alert('Erro ao importar JSON: ' + err.message);
+      }
+    };
+    reader.readAsText(file);
+  }
+
+  function exportChecklist() {
+    const dataStr = JSON.stringify(checklistData, null, 2);
+    const blob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'checklist-' + Date.now() + '.json';
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+ function ensureNote(data) {
+  for (const item of data) {
+    if (typeof item.note !== 'string') item.note = "";
+    if (typeof item.nivel !== 'number') item.nivel = 0; // nivel de 0 a 3
+    if (item.children && item.children.length > 0) {
+      ensureNote(item.children);
+    }
+  }
+}
+
+
+  function toggleCheck(item) {
+    item.checked = !item.checked;
+    updateParentStates(checklistData);
+    renderChecklist();
+  }
+
+  function updateParentStates(data) {
+    for (const item of data) {
+      if (item.children && item.children.length > 0) {
+        updateParentStates(item.children);
+        const allChecked = item.children.every((c) => c.checked);
+        const someChecked = item.children.some((c) => c.checked || c.partial);
+        item.checked = allChecked ? true : false;
+        item.partial = !allChecked && someChecked;
+      } else {
+        item.partial = false;
+      }
+    }
+  }
+
+  function createChecklistList(data) {
+  const ul = document.createElement('ul');
+  const totalItems = countTotalItems(checklistData);
+
+  for (const item of data) {
+    if (typeof item.note !== 'string') item.note = "";
+    if (typeof item.nivel !== 'number') item.nivel = 0;
+
+    const li = document.createElement('li');
+
+    const div = document.createElement('div');
+    div.className = 'checklist-item';
+
+    div.style.borderColor = {
+      0: 'red',
+      1: 'orange',
+      2: '#ffeb3b',
+      3: '#4caf50'
+    }[item.nivel] || '#ccc';
+
+    if (item.nivel === 3) {
+      div.style.boxShadow = '0 0 8px 2px #4caf50aa';
+    } else {
+      div.style.boxShadow = 'none';
+    }
+
+    if (item.checked) div.classList.add('checked');
+    else if (item.partial) div.classList.add('partial');
+
+    const statusDot = document.createElement('span');
+    statusDot.className = 'status-dot';
+    if (item.note.trim() !== '') {
+      statusDot.classList.add('green');
+    }
+
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.checked = !!item.checked;
+    checkbox.onclick = (ev) => {
+      ev.stopPropagation();
+      toggleCheck(item);
+    };
+
+    const span = document.createElement('span');
+    span.className = 'item-text';
+    span.textContent = item.text;
+    span.style.userSelect = "none";
+
+    // Percentuais
+    const parent = findParent(checklistData, item);
+    const parentName = parent ? parent.text : null;
+    let pctRelativo = null;
+    if (parent) {
+      const totalChildren = countChildrenItems(parent);
+      const checkedChildren = countCheckedChildren(parent);
+      pctRelativo = totalChildren > 0 ? Math.round((checkedChildren / totalChildren) * 100) : 0;
+    }
+    const checkedTotal = countCheckedItems(checklistData);
+    const pctAbsoluto = totalItems > 0 ? Math.round((checkedTotal / totalItems) * 100) : 0;
+
+    let progressText = '';
+    if (parentName) {
+      progressText = ` - ${pctRelativo}% de (${parentName})`;
+    }
+    progressText += ` - ${pctAbsoluto}% do total`;
+
+    const progressSpan = document.createElement('small');
+    progressSpan.style.marginLeft = '8px';
+    progressSpan.style.color = '#666';
+    progressSpan.textContent = progressText;
+
+    span.appendChild(progressSpan);
+
+    // Criar seletor de nível
+    const selectNivel = document.createElement('select');
+    selectNivel.style.marginLeft = '10px';
+    const niveis = [
+      { value: 0, label: 'Nível 0 - Ignorância' },
+      { value: 1, label: 'Nível 1 - Noção vaga' },
+      { value: 2, label: 'Nível 2 - Sabe usar' },
+      { value: 3, label: 'Nível 3 - Domínio' }
+    ];
+    niveis.forEach(n => {
+      const option = document.createElement('option');
+      option.value = n.value;
+      option.textContent = n.label;
+      selectNivel.appendChild(option);
+    });
+    selectNivel.value = item.nivel;
+    selectNivel.onchange = (ev) => {
+      item.nivel = parseInt(ev.target.value, 10);
+      renderChecklist();
+    };
+
+    // Div editável como campo de nota (HTML)
+    const noteDiv = document.createElement('div');
+    noteDiv.className = 'note-editor';
+    noteDiv.contentEditable = true;
+    noteDiv.innerHTML = item.note;
+    noteDiv.style.display = 'none';
+
+    noteDiv.oninput = () => {
+      item.note = noteDiv.innerHTML.trim();
+      statusDot.classList.toggle('green', item.note !== '');
+    };
+
+    span.onclick = () => {
+      noteDiv.style.display = noteDiv.style.display === 'none' ? 'block' : 'none';
+      if (noteDiv.style.display === 'block') {
+        noteDiv.focus();
+      }
+    };
+
+    div.appendChild(statusDot);
+    div.appendChild(checkbox);
+    div.appendChild(span);
+    div.appendChild(selectNivel);
+
+    li.appendChild(div);
+    li.appendChild(noteDiv);
+
+    if (item.children && item.children.length > 0) {
+      li.appendChild(createChecklistList(item.children));
+    }
+
+    ul.appendChild(li);
+  }
+
+  return ul;
+}
+
+function countTotalItems(data) {
+  let count = 0;
+  for (const item of data) {
+    count++;
+    if (item.children && item.children.length > 0) {
+      count += countTotalItems(item.children);
+    }
+  }
+  return count;
+}
+
+function countCheckedItems(data) {
+  let count = 0;
+  for (const item of data) {
+    if (item.checked) count++;
+    if (item.children && item.children.length > 0) {
+      count += countCheckedItems(item.children);
+    }
+  }
+  return count;
+}
+
+function countChildrenItems(item) {
+  return item.children ? item.children.length : 0;
+}
+
+function countCheckedChildren(item) {
+  if (!item.children) return 0;
+  return item.children.filter(c => c.checked).length;
+}
+
+function findParent(data, targetItem) {
+  for (const item of data) {
+    if (item.children && item.children.includes(targetItem)) {
+      return item;
+    }
+    if (item.children) {
+      const found = findParent(item.children, targetItem);
+      if (found) return found;
+    }
+  }
+  return null;
+}
+
+  function renderChecklist() {
+    const container = document.getElementById('checklistContainer');
+    container.innerHTML = '';
+    if (checklistData.length > 0) {
+      const checklistTree = createChecklistList(checklistData);
+      container.appendChild(checklistTree);
+    }
+  }
+
+  // Função para construir conteúdo recursivamente para pdfmake
+  function buildPdfContent(data, level = 0) {
+    let content = [];
+    const indentSize = 10;
+
+    data.forEach(item => {
+      // Título do item com recuo
+      content.push({
+        text: item.text,
+        margin: [indentSize * level, 5, 0, 0],
+        fontSize: 14 - level >= 10 ? 14 - level : 10,
+        bold: true
+      });
+
+      // Nota, se existir
+      if (item.note && item.note.trim() !== '') {
+        content.push({
+          text: item.note.trim(),
+          margin: [indentSize * level + 5, 0, 0, 5],
+          fontSize: 12,
+          italics: true
+        });
+      }
+
+      // Recursão para filhos
+      if (item.children && item.children.length > 0) {
+        content = content.concat(buildPdfContent(item.children, level + 1));
+      }
+    });
+
+    return content;
+  }
+
+  function exportPdf() {
+    if (checklistData.length === 0) {
+      alert("Nenhum checklist carregado para exportar.");
+      return;
+    }
+
+const docDefinition = {
+  background: function(currentPage, pageSize) {
+    return {
+      canvas: [
+        {
+          type: 'rect',
+          x: 0,
+          y: 0,
+          w: pageSize.width,
+          h: pageSize.height,
+          color: '#a7e0af' // azul claro
+        }
+      ]
+    };
+  },
+  content: [
+    { text: checklistData[0].text || "Checklist", style: 'header', margin: [0, 0, 0, 15] },
+    { text: 'Conteúdo:', style: 'subheader' },
+    ...buildPdfContent(checklistData),
+  ],
+  styles: {
+    header: { fontSize: 22, bold: true, alignment: 'center', color: '#003366' },
+    subheader: { fontSize: 16, bold: true, margin: [0, 10, 0, 10], color: '#0059b3' },
+    normalText: { fontSize: 12, color: '#000000' }
+  },
+  pageMargins: [40, 60, 40, 60]
+};
+
+
+    pdfMake.createPdf(docDefinition).download('checklist-' + Date.now() + '.pdf');
+  }
+function buildPdfContent(data, level = 0) {
+  let content = [];
+  data.forEach(item => {
+    content.push({
+      text: '  '.repeat(level) + item.text,
+      margin: [0, 2, 0, 2]
+    });
+    if (item.note && item.note.trim() !== "") {
+      content.push({
+        text: '  '.repeat(level) + "Nota: " + item.note,
+        italics: true,
+        margin: [10, 0, 0, 4],
+        fontSize: 10
+      });
+    }
+    if (item.children && item.children.length > 0) {
+      content = content.concat(buildPdfContent(item.children, level + 1));
+    }
+  });
+  return content;
+}
+
+function getUserFormatting() {
+  return {
+    bgColor: document.getElementById('bgColor').value,
+    fontColor: document.getElementById('fontColor').value,
+    textAlign: document.getElementById('textAlign').value,
+    fontSize: parseInt(document.getElementById('fontSize').value, 10),
+    fontBold: document.getElementById('fontBold').checked,
+  };
+}
+
+function generateDocDefinition() {
+  const fmt = getUserFormatting();
+
+  return {
+    background: function(currentPage, pageSize) {
+      return {
+        canvas: [
+          {
+            type: 'rect',
+            x: 0,
+            y: 0,
+            w: pageSize.width,
+            h: pageSize.height,
+            color: fmt.bgColor
+          }
+        ]
+      };
+    },
+    content: [
+      {
+        text: checklistData[0]?.text || "Checklist",
+        fontSize: fmt.fontSize + 6,
+        bold: fmt.fontBold,
+        alignment: fmt.textAlign,
+        margin: [0, 0, 0, 10],
+        color: fmt.fontColor
+      },
+      ...buildPdfContent(checklistData).map(item => ({
+        ...item,
+        color: fmt.fontColor,
+        alignment: fmt.textAlign,
+        fontSize: fmt.fontSize,
+        bold: fmt.fontBold
+      }))
+    ],
+    defaultStyle: {
+      font: 'Roboto'
+    },
+    pageMargins: [40, 60, 40, 60]
+  };
+}
+
+function updatePreview() {
+  const docDefinition = generateDocDefinition();
+
+  // gera o PDF como dataUrl e mostra no iframe
+  pdfMake.createPdf(docDefinition).getDataUrl(function(dataUrl) {
+    const previewDiv = document.getElementById('pdfPreview');
+    previewDiv.innerHTML = `<iframe style="width:100%; height:100%;" src="${dataUrl}"></iframe>`;
+  });
+}
+
+async function exportPdf() {
+  if (checklistData.length === 0) {
+    alert("Importe ou crie um checklist antes de exportar.");
+    return;
+  }
+  const docDefinition = generateDocDefinition();
+  pdfMake.createPdf(docDefinition).download("checklist-" + Date.now() + ".pdf");
+}
+
+</script>
+</body>
+</html>
