@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mapa Interativo para Motoboy</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      text-align: center;
+      background-color: #f4f4f4;
+    }
+    #map-container {
+      position: relative;
+      width: 100%;
+      height: 600px;
+      overflow: hidden;
+      margin-bottom: 20px;
+      background-color: #fff;
+      cursor: pointer;
+    }
+    #map {
+      width: 100%;
+      cursor: crosshair;
+    }
+    .point {
+      position: absolute;
+      width: 20px;
+      height: 20px;
+      background-color: red;
+      border-radius: 50%;
+      color: white;
+      text-align: center;
+      font-size: 12px;
+      cursor: pointer;
+    }
+    .card {
+      background: #fff;
+      padding: 10px;
+      margin: 5px;
+      border-radius: 5px;
+      border: 1px solid #ddd;
+      display: inline-block;
+      width: calc(33% - 10px);
+      box-sizing: border-box;
+      text-align: left;
+    }
+    .card input, .card textarea {
+      width: 100%;
+      margin: 5px 0;
+      padding: 8px;
+      font-size: 14px;
+    }
+    .btn-container {
+      margin: 20px;
+    }
+    .btn {
+      padding: 10px 20px;
+      margin: 10px;
+      cursor: pointer;
+      border: none;
+      background-color: #007bff;
+      color: white;
+      font-size: 16px;
+      border-radius: 5px;
+    }
+    .btn:active {
+      background-color: #0056b3;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Mapa Interativo para Motoboy</h1>
+
+  <!-- Seletor para escolher o mapa/lugar -->
+  <div>
+    <label for="mapSelector">Escolha um mapa:</label>
+    <select id="mapSelector" onchange="loadMap()">
+      <option value="">Selecione um mapa</option>
+    </select>
+  </div>
+
+  <div class="btn-container">
+    <button class="btn" onclick="exportData()">Exportar Dados (JSON)</button>
+    <button class="btn" onclick="importData()">Importar Dados (JSON)</button>
+  </div>
+
+  <div id="map-container">
+    <img id="map" src="" alt="Mapa da Região" />
+  </div>
+
+  <div id="cards-container"></div>
+
+  <script>
+    // Lista de mapas e seus arquivos correspondentes
+    const mapsList = [
+      { name: 'Centro', file: 'centro1.jpg' },
+      { name: 'Zona Norte', file: 'zona-norte.jpg' },
+      // Você pode adicionar mais mapas à lista conforme necessário
+    ];
+
+    let points = {};  // Usar um objeto para armazenar pontos por lugar
+    let currentMapName = '';  // Para armazenar o nome do mapa atual
+
+    // Carrega a lista de mapas disponíveis
+    function loadMapSelector() {
+      const mapSelector = document.getElementById('mapSelector');
+      mapsList.forEach(map => {
+        const option = document.createElement('option');
+        option.value = map.name;
+        option.textContent = map.name;
+        mapSelector.appendChild(option);
+      });
+    }
+
+    // Função para carregar o mapa e pontos ao selecionar o mapa
+    function loadMap() {
+      const mapName = document.getElementById('mapSelector').value;
+      if (!mapName) return;  // Se nenhum mapa for selecionado
+
+      currentMapName = mapName;
+
+      // Encontrar o arquivo do mapa baseado no nome
+      const selectedMap = mapsList.find(map => map.name === mapName);
+      const mapFile = selectedMap ? selectedMap.file : '';
+
+      if (mapFile) {
+        const mapImage = document.getElementById('map');
+        
+        // Verificar se o mapa está presente no DOM
+        if (mapImage) {
+          mapImage.src = `maps/${mapFile}`;  // Carregar o arquivo de imagem do mapa
+        }
+
+        // Carregar os pontos do mapa no localStorage
+        loadPoints();
+        
+        drawPoints();
+      }
+    }
+
+    // Função para carregar os pontos do localStorage
+    function loadPoints() {
+      const savedPoints = localStorage.getItem(currentMapName);
+      if (savedPoints) {
+        points[currentMapName] = JSON.parse(savedPoints);
+      } else {
+        points[currentMapName] = [];
+      }
+    }
+
+    // Função para salvar os pontos no localStorage
+    function savePoints() {
+      localStorage.setItem(currentMapName, JSON.stringify(points[currentMapName]));
+    }
+
+    // Função para desenhar os pontos no mapa
+    function drawPoints() {
+      const mapContainer = document.getElementById('map-container');
+      const mapImage = document.getElementById('map');
+      
+      if (!mapImage) return; // Se a imagem não existir, não faz nada
+
+      // Limpa a área de mapa (removendo os pontos anteriores)
+      const existingPoints = document.querySelectorAll('.point');
+      existingPoints.forEach(point => point.remove());
+
+      if (!points[currentMapName]) return; // Se não houver pontos para o mapa atual
+
+      points[currentMapName].forEach((point, index) => {
+        const pointElement = document.createElement('div');
+        pointElement.classList.add('point');
+        pointElement.style.left = `${point.x}px`;
+        pointElement.style.top = `${point.y}px`;
+        pointElement.innerText = point.id;
+        mapContainer.appendChild(pointElement);
+      });
+
+      renderCards();
+    }
+
+    // Função para renderizar os cards abaixo da imagem
+    function renderCards() {
+      const cardsContainer = document.getElementById('cards-container');
+      cardsContainer.innerHTML = '';  // Limpa os cards
+
+      if (!points[currentMapName]) return; // Se não houver pontos para o mapa atual
+
+      points[currentMapName].forEach((point, index) => {
+        const card = document.createElement('div');
+        card.classList.add('card');
+        card.innerHTML = `
+          <strong>Ponto ${point.id}</strong>
+          <input type="text" value="${point.name}" placeholder="Nome do ponto" onchange="updatePoint(${index}, 'name', this.value)">
+          <textarea placeholder="Texto" onchange="updatePoint(${index}, 'text', this.value)">${point.text}</textarea>
+          <button onclick="removePoint(${index})">Remover Ponto</button>
+        `;
+        cardsContainer.appendChild(card);
+      });
+    }
+
+    // Função para adicionar pontos ao mapa
+    const mapImage = document.getElementById('map');
+    mapImage.addEventListener('click', (e) => {
+      if (!currentMapName) return; // Não fazer nada se não houver mapa carregado
+
+      const mapContainer = document.getElementById('map-container');
+      const mapRect = mapContainer.getBoundingClientRect();
+
+      // Calcula a posição do clique com base na posição do mapa
+      const x = e.clientX - mapRect.left;
+      const y = e.clientY - mapRect.top;
+
+      // Cria um novo ponto no clique
+      const newPoint = {
+        id: points[currentMapName].length + 1,
+        x: x,
+        y: y,
+        name: 'Novo Ponto',
+        text: '',
+      };
+
+      points[currentMapName].push(newPoint);
+      savePoints();
+      drawPoints();
+    });
+
+    // Função para atualizar os dados de um ponto
+    function updatePoint(index, field, value) {
+      points[currentMapName][index][field] = value;
+      savePoints();
+    }
+
+    // Função para remover um ponto
+    function removePoint(index) {
+      points[currentMapName].splice(index, 1);
+      savePoints();
+      drawPoints();
+    }
+
+    // Função para exportar os dados
+    function exportData() {
+      const dataStr = JSON.stringify(points, null, 2);
+      const blob = new Blob([dataStr], { type: 'application/json' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = 'pontos.json';
+      link.click();
+    }
+
+    // Função para importar os dados
+    function importData() {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = '.json';
+      input.onchange = (e) => {
+        const file = e.target.files[0];
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          points = JSON.parse(event.target.result);
+          savePoints();
+          drawPoints();
+        };
+        reader.readAsText(file);
+      };
+      input.click();
+    }
+
+    // Carregar os mapas ao iniciar
+    window.onload = () => {
+      loadMapSelector();
+    };
+
+  </script>
+
+</body>
+</html>
